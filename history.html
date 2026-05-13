@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>History Page</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+background:#f5f7ff;
+font-family:'Fredoka',sans-serif;
+color:#14234f;
+}
+
+.page{
+display:flex;
+min-height:100vh;
+}
+
+/* MAIN */
+
+.main{
+flex:1;
+padding:28px;
+}
+
+/* HERO */
+
+.hero{
+background:linear-gradient(180deg,#ffffff,#f8fbff);
+border-radius:34px;
+padding:32px;
+position:relative;
+overflow:hidden;
+box-shadow:0 10px 30px rgba(68,104,255,.08);
+margin-bottom:24px;
+}
+
+.hero h1{
+font-family:'Baloo 2',cursive;
+font-size:4rem;
+line-height:1;
+margin-bottom:8px;
+}
+
+.hero p{
+font-size:1.1rem;
+color:#61719e;
+}
+
+.hero-trophy{
+position:absolute;
+right:40px;
+top:20px;
+width:170px;
+opacity:.95;
+}
+
+/* STATS */
+
+.stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:18px;
+margin-bottom:24px;
+}
+
+.stat{
+background:white;
+border-radius:28px;
+padding:22px;
+display:flex;
+align-items:center;
+gap:16px;
+box-shadow:0 10px 30px rgba(68,104,255,.08);
+}
+
+.stat-icon{
+width:62px;
+height:62px;
+border-radius:20px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:1.8rem;
+font-weight:700;
+}
+
+.blue{
+background:#edf3ff;
+color:#3b67ff;
+}
+
+.green{
+background:#ecfff0;
+color:#31ba59;
+}
+
+.purple{
+background:#f4ebff;
+color:#9654ff;
+}
+
+.orange{
+background:#fff3e5;
+color:#ff9524;
+}
+
+.stat h2{
+font-size:2rem;
+font-family:'Baloo 2',cursive;
+line-height:1;
+}
+
+.stat span{
+display:block;
+margin-top:4px;
+color:#6d7aa3;
+font-weight:600;
+}
+
+/* FILTERS */
+
+.filters{
+background:white;
+padding:18px;
+border-radius:30px;
+display:flex;
+gap:16px;
+margin-bottom:22px;
+box-shadow:0 10px 30px rgba(68,104,255,.08);
+flex-wrap:wrap;
+}
+
+.filter{
+flex:1;
+min-width:170px;
+height:56px;
+border-radius:18px;
+border:2px solid #edf2ff;
+padding:0 18px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+font-weight:600;
+color:#64739d;
+background:#fbfcff;
+}
+
+/* HISTORY LIST */
+
+.history-list{
+display:flex;
+flex-direction:column;
+gap:18px;
+}
+
+.card{
+background:white;
+border-radius:30px;
+padding:24px;
+display:flex;
+align-items:center;
+justify-content:space-between;
+gap:20px;
+box-shadow:0 10px 30px rgba(68,104,255,.08);
+}
+
+.card-left{
+display:flex;
+gap:18px;
+align-items:center;
+}
+
+.exam-icon{
+width:78px;
+height:78px;
+border-radius:24px;
+object-fit:cover;
+background:#eef2ff;
+padding:14px;
+}
+
+.card-info h3{
+font-family:'Baloo 2',cursive;
+font-size:2rem;
+line-height:1;
+margin-bottom:8px;
+}
+
+.meta{
+display:flex;
+gap:18px;
+flex-wrap:wrap;
+color:#6c79a0;
+font-size:.95rem;
+font-weight:600;
+}
+
+.score-area{
+display:flex;
+align-items:center;
+gap:26px;
+}
+
+.circle{
+width:88px;
+height:88px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-weight:700;
+font-size:1.3rem;
+position:relative;
+}
+
+.c1{
+border:6px solid #3d67ff;
+color:#3d67ff;
+}
+
+.c2{
+border:6px solid #9a58ff;
+color:#9a58ff;
+}
+
+.c3{
+border:6px solid #ff5575;
+color:#ff5575;
+}
+
+.c4{
+border:6px solid #33c15a;
+color:#33c15a;
+}
+
+.score-text{
+font-size:1.6rem;
+font-family:'Baloo 2',cursive;
+line-height:1;
+}
+
+.score-text span{
+display:block;
+font-size:.95rem;
+font-family:'Fredoka',sans-serif;
+color:#6f7ba2;
+margin-top:6px;
+}
+
+.badge{
+padding:12px 18px;
+border-radius:999px;
+font-size:.9rem;
+font-weight:700;
+}
+
+.complete{
+background:#effff1;
+color:#32b54f;
+}
+
+.incomplete{
+background:#fff0f3;
+color:#ff4d6f;
+}
+
+.arrow{
+width:52px;
+height:52px;
+border-radius:18px;
+display:flex;
+align-items:center;
+justify-content:center;
+background:#f4f7ff;
+font-size:1.3rem;
+font-weight:700;
+color:#6d7aa3;
+}
+
+/* FOOTER */
+
+.footer-box{
+margin-top:24px;
+background:white;
+padding:20px 24px;
+border-radius:28px;
+display:flex;
+align-items:center;
+gap:18px;
+box-shadow:0 10px 30px rgba(68,104,255,.08);
+}
+
+.footer-box img{
+width:70px;
+height:70px;
+object-fit:contain;
+}
+
+.footer-box h4{
+font-family:'Baloo 2',cursive;
+font-size:1.7rem;
+line-height:1;
+margin-bottom:6px;
+}
+
+.footer-box p{
+color:#6f7ba2;
+}
+
+/* MOBILE */
+
+.mobile-nav{
+display:none;
+}
+
+@media(max-width:1100px){
+
+.stats{
+grid-template-columns:repeat(2,1fr);
+}
+
+.card{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.score-area{
+width:100%;
+justify-content:space-between;
+}
+
+}
+
+@media(max-width:700px){
+
+.main{
+padding:18px 18px 110px;
+}
+
+.hero{
+padding:26px;
+border-radius:28px;
+}
+
+.hero h1{
+font-size:2.8rem;
+}
+
+.hero-trophy{
+width:110px;
+right:18px;
+top:18px;
+}
+
+.stats{
+grid-template-columns:1fr 1fr;
+gap:14px;
+}
+
+.stat{
+padding:18px;
+border-radius:22px;
+}
+
+.stat h2{
+font-size:1.5rem;
+}
+
+.filters{
+padding:14px;
+gap:12px;
+border-radius:24px;
+}
+
+.filter{
+min-width:100%;
+height:52px;
+}
+
+.card{
+padding:20px;
+border-radius:26px;
+}
+
+.card-left{
+align-items:flex-start;
+}
+
+.exam-icon{
+width:64px;
+height:64px;
+border-radius:20px;
+}
+
+.card-info h3{
+font-size:1.5rem;
+}
+
+.meta{
+gap:10px;
+font-size:.88rem;
+}
+
+.score-area{
+flex-wrap:wrap;
+gap:18px;
+}
+
+.circle{
+width:72px;
+height:72px;
+font-size:1rem;
+}
+
+.score-text{
+font-size:1.2rem;
+}
+
+.arrow{
+width:100%;
+height:52px;
+border-radius:16px;
+}
+
+.footer-box{
+flex-direction:column;
+text-align:center;
+padding:22px;
+}
+
+.mobile-nav{
+display:flex;
+position:fixed;
+bottom:0;
+left:0;
+width:100%;
+height:78px;
+background:white;
+border-top:2px solid #edf2ff;
+justify-content:space-around;
+align-items:center;
+z-index:99;
+}
+
+.mobile-nav .item{
+display:flex;
+flex-direction:column;
+align-items:center;
+font-size:.78rem;
+font-weight:700;
+color:#7380a8;
+gap:6px;
+}
+
+.mobile-nav .active{
+color:#3c67ff;
+}
+
+}
+
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<div class="main">
+
+<!-- HERO -->
+
+<section class="hero">
+
+<h1>Your Test History</h1>
+
+<p>
+Track your progress and see how you're improving every day!
+</p>
+
+<img src="assets/trophy-placeholder.png" class="hero-trophy">
+
+</section>
+
+<!-- STATS -->
+
+<section class="stats">
+
+<div class="stat">
+<div class="stat-icon blue">📋</div>
+<div>
+<h2>12</h2>
+<span>Tests Attempted</span>
+</div>
+</div>
+
+<div class="stat">
+<div class="stat-icon green">🎯</div>
+<div>
+<h2>68%</h2>
+<span>Average Accuracy</span>
+</div>
+</div>
+
+<div class="stat">
+<div class="stat-icon purple">📈</div>
+<div>
+<h2>5</h2>
+<span>Best Score</span>
+</div>
+</div>
+
+<div class="stat">
+<div class="stat-icon orange">🔥</div>
+<div>
+<h2>2</h2>
+<span>Current Streak</span>
+</div>
+</div>
+
+</section>
+
+<!-- FILTERS -->
+
+<section class="filters">
+
+<div class="filter">
+<span>🔍 Search tests...</span>
+</div>
+
+<div class="filter">
+<span>📚 All Exams</span>
+<span>⌄</span>
+</div>
+
+<div class="filter">
+<span>📌 All Status</span>
+<span>⌄</span>
+</div>
+
+<div class="filter">
+<span>↕ Sort by: Latest</span>
+<span>⌄</span>
+</div>
+
+</section>
+
+<!-- HISTORY LIST -->
+
+<section class="history-list">
+
+<!-- CARD -->
+
+<div class="card">
+
+<div class="card-left">
+
+<img src="assets/ibps-placeholder.png" class="exam-icon">
+
+<div class="card-info">
+
+<h3>IBPS Clerk Mock Test 1</h3>
+
+<div class="meta">
+<span>📅 18 May 2025</span>
+<span>📄 100 Qs</span>
+<span>🕒 60 Min</span>
+<span>▦ 3 Sections</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="score-area">
+
+<div class="circle c1">
+72%
+</div>
+
+<div class="score-text">
+72 / 100
+<span>Score</span>
+</div>
+
+<div class="badge complete">
+Completed
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</div>
+
+</div>
+
+<!-- CARD -->
+
+<div class="card">
+
+<div class="card-left">
+
+<img src="assets/test-placeholder.png" class="exam-icon">
+
+<div class="card-info">
+
+<h3>IBPS Clerk Mock Test 2</h3>
+
+<div class="meta">
+<span>📅 17 May 2025</span>
+<span>📄 100 Qs</span>
+<span>🕒 60 Min</span>
+<span>▦ 3 Sections</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="score-area">
+
+<div class="circle c2">
+58%
+</div>
+
+<div class="score-text">
+58 / 100
+<span>Score</span>
+</div>
+
+<div class="badge complete">
+Completed
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</div>
+
+</div>
+
+<!-- CARD -->
+
+<div class="card">
+
+<div class="card-left">
+
+<img src="assets/test-placeholder.png" class="exam-icon">
+
+<div class="card-info">
+
+<h3>IBPS Clerk Mock Test 3</h3>
+
+<div class="meta">
+<span>📅 16 May 2025</span>
+<span>📄 100 Qs</span>
+<span>🕒 60 Min</span>
+<span>▦ 3 Sections</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="score-area">
+
+<div class="circle c3">
+48%
+</div>
+
+<div class="score-text">
+48 / 100
+<span>Score</span>
+</div>
+
+<div class="badge incomplete">
+Incomplete
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</div>
+
+</div>
+
+<!-- CARD -->
+
+<div class="card">
+
+<div class="card-left">
+
+<img src="assets/test-placeholder.png" class="exam-icon">
+
+<div class="card-info">
+
+<h3>IBPS Clerk Prelims 2024</h3>
+
+<div class="meta">
+<span>📅 15 May 2025</span>
+<span>📄 100 Qs</span>
+<span>🕒 60 Min</span>
+<span>▦ 3 Sections</span>
+</div>
+
+</div>
+
+</div>
+
+<div class="score-area">
+
+<div class="circle c4">
+81%
+</div>
+
+<div class="score-text">
+81 / 100
+<span>Score</span>
+</div>
+
+<div class="badge complete">
+Completed
+</div>
+
+<div class="arrow">
+›
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- FOOTER -->
+
+<section class="footer-box">
+
+<img src="assets/owl-placeholder.png">
+
+<div>
+<h4>Consistency is the key to success!</h4>
+<p>
+Keep practicing and you'll achieve your goals.
+</p>
+</div>
+
+</section>
+
+</div>
+
+</div>
+
+<!-- MOBILE NAV -->
+
+<div class="mobile-nav">
+
+<div class="item">
+🏠
+<span>Home</span>
+</div>
+
+<div class="item">
+📚
+<span>Tests</span>
+</div>
+
+<div class="item active">
+🕘
+<span>History</span>
+</div>
+
+<div class="item">
+👤
+<span>Profile</span>
+</div>
+
+</div>
+
+</body>
+</html>

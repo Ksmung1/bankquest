@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>BankCore Profile</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+body{
+background:#f5f7ff;
+font-family:'Fredoka',sans-serif;
+color:#16234f;
+}
+
+.page{
+display:flex;
+min-height:100vh;
+}
+
+/* MAIN */
+
+.main{
+flex:1;
+padding:24px;
+}
+
+/* HERO */
+
+.hero{
+background:linear-gradient(180deg,#f8fbff,#eef4ff);
+border-radius:34px;
+padding:28px;
+display:flex;
+justify-content:space-between;
+gap:30px;
+box-shadow:0 10px 30px rgba(69,102,255,.08);
+margin-bottom:24px;
+overflow:hidden;
+position:relative;
+border:2px solid #edf2ff;
+}
+
+.hero-left{
+display:flex;
+gap:24px;
+align-items:flex-start;
+}
+
+.avatar-wrap{
+position:relative;
+}
+
+.avatar{
+width:120px;
+height:120px;
+border-radius:34px;
+background:linear-gradient(180deg,#4d7cff,#2e63ff);
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:4rem;
+font-weight:800;
+color:white;
+border:6px solid white;
+box-shadow:0 10px 20px rgba(59,103,255,.2);
+}
+
+.edit-btn{
+position:absolute;
+right:-4px;
+bottom:-4px;
+width:42px;
+height:42px;
+border-radius:50%;
+background:#ff7a2f;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:1rem;
+color:white;
+font-weight:700;
+border:4px solid white;
+}
+
+.hero-text h4{
+font-size:1.2rem;
+font-weight:500;
+color:#6878a3;
+margin-top:8px;
+}
+
+.hero-text h1{
+font-family:'Baloo 2',cursive;
+font-size:4rem;
+line-height:1;
+margin:8px 0;
+}
+
+.username{
+font-size:1.1rem;
+font-weight:700;
+color:#3567ff;
+margin-bottom:10px;
+}
+
+.email{
+color:#6d7ba3;
+margin-bottom:22px;
+}
+
+.edit-profile{
+padding:16px 26px;
+border:none;
+border-radius:18px;
+background:linear-gradient(180deg,#ff8f4a,#ff6d2f);
+color:white;
+font-size:1rem;
+font-weight:700;
+font-family:'Fredoka',sans-serif;
+box-shadow:0 10px 20px rgba(255,125,48,.2);
+cursor:pointer;
+}
+
+.hero-right img{
+width:430px;
+max-width:100%;
+object-fit:contain;
+}
+
+/* STATS */
+
+.stats{
+display:grid;
+grid-template-columns:repeat(3,1fr);
+gap:18px;
+margin-top:22px;
+}
+
+.stat{
+background:white;
+padding:22px;
+border-radius:28px;
+display:flex;
+align-items:center;
+gap:18px;
+box-shadow:0 10px 30px rgba(69,102,255,.08);
+}
+
+.icon{
+width:82px;
+height:82px;
+border-radius:24px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:2.4rem;
+font-weight:700;
+}
+
+.blue{
+background:#edf3ff;
+color:#3567ff;
+}
+
+.green{
+background:#effff2;
+color:#31b54f;
+}
+
+.purple{
+background:#f5ecff;
+color:#9a59ff;
+}
+
+.stat h2{
+font-size:2.3rem;
+font-family:'Baloo 2',cursive;
+line-height:1;
+}
+
+.stat span{
+display:block;
+margin-top:8px;
+color:#6f7ba3;
+font-weight:600;
+font-size:1rem;
+}
+
+.stat small{
+display:block;
+margin-top:8px;
+font-size:.92rem;
+color:#8a96ba;
+}
+
+/* PROFILE DETAILS */
+
+.card{
+margin-top:24px;
+background:white;
+border-radius:34px;
+padding:30px;
+box-shadow:0 10px 30px rgba(69,102,255,.08);
+}
+
+.card-head{
+display:flex;
+justify-content:space-between;
+align-items:center;
+margin-bottom:28px;
+gap:20px;
+}
+
+.card-head-left{
+display:flex;
+align-items:center;
+gap:18px;
+}
+
+.card-head-icon{
+width:64px;
+height:64px;
+border-radius:22px;
+background:#edf3ff;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:2rem;
+color:#3567ff;
+}
+
+.card-head h2{
+font-family:'Baloo 2',cursive;
+font-size:2.3rem;
+line-height:1;
+margin-bottom:6px;
+}
+
+.card-head p{
+color:#6d7ba3;
+}
+
+.security{
+width:130px;
+object-fit:contain;
+}
+
+.detail-box{
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:20px;
+padding:24px;
+border-radius:28px;
+background:#fafbff;
+border:2px solid #edf2ff;
+margin-bottom:18px;
+}
+
+.detail-left{
+display:flex;
+align-items:flex-start;
+gap:18px;
+}
+
+.detail-icon{
+width:74px;
+height:74px;
+border-radius:22px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:2rem;
+font-weight:700;
+}
+
+.purple-bg{
+background:#f5ecff;
+color:#9657ff;
+}
+
+.green-bg{
+background:#effff2;
+color:#31b54f;
+}
+
+.detail-content h4{
+font-size:.95rem;
+font-weight:700;
+letter-spacing:.4px;
+color:#8b96ba;
+margin-bottom:8px;
+}
+
+.detail-content h3{
+font-size:1.5rem;
+font-family:'Baloo 2',cursive;
+margin-bottom:8px;
+}
+
+.detail-content p{
+color:#7c88ac;
+line-height:1.5;
+}
+
+.upload-btn{
+padding:16px 24px;
+border-radius:18px;
+border:2px solid #dce6ff;
+background:white;
+font-size:1rem;
+font-weight:700;
+font-family:'Fredoka',sans-serif;
+color:#3567ff;
+cursor:pointer;
+}
+
+/* ACHIEVEMENT */
+
+.achievement{
+margin-top:24px;
+background:linear-gradient(180deg,#fffdf7,#fff8eb);
+border-radius:34px;
+padding:26px;
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:20px;
+box-shadow:0 10px 30px rgba(69,102,255,.08);
+}
+
+.ach-left{
+display:flex;
+align-items:center;
+gap:20px;
+}
+
+.medal{
+width:92px;
+height:92px;
+object-fit:contain;
+}
+
+.ach-text h2{
+font-family:'Baloo 2',cursive;
+font-size:2rem;
+margin-bottom:8px;
+}
+
+.ach-text p{
+color:#7b88ac;
+}
+
+.ach-right{
+display:flex;
+align-items:center;
+gap:34px;
+}
+
+.mini{
+text-align:center;
+}
+
+.mini-icon{
+width:70px;
+height:70px;
+border-radius:22px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:2rem;
+font-weight:700;
+margin:auto auto 12px;
+}
+
+.view-all{
+padding:18px 26px;
+border-radius:18px;
+background:white;
+font-weight:700;
+display:flex;
+align-items:center;
+gap:12px;
+cursor:pointer;
+}
+
+/* MOBILE NAV */
+
+.mobile-nav{
+display:none;
+}
+
+/* RESPONSIVE */
+
+@media(max-width:1150px){
+
+.stats{
+grid-template-columns:1fr;
+}
+
+.hero{
+flex-direction:column;
+}
+
+.achievement{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.ach-right{
+width:100%;
+justify-content:space-between;
+}
+
+}
+
+@media(max-width:760px){
+
+.main{
+padding:16px 16px 100px;
+}
+
+.hero{
+padding:22px;
+border-radius:28px;
+}
+
+.hero-left{
+flex-direction:column;
+}
+
+.avatar{
+width:100px;
+height:100px;
+font-size:3rem;
+}
+
+.hero-text h1{
+font-size:3rem;
+}
+
+.hero-right img{
+width:100%;
+}
+
+.stats{
+gap:14px;
+}
+
+.stat{
+padding:18px;
+border-radius:24px;
+}
+
+.icon{
+width:68px;
+height:68px;
+font-size:2rem;
+}
+
+.card{
+padding:22px;
+border-radius:28px;
+}
+
+.card-head{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.security{
+width:100px;
+}
+
+.detail-box{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.upload-btn{
+width:100%;
+}
+
+.achievement{
+padding:22px;
+border-radius:28px;
+}
+
+.ach-left{
+flex-direction:column;
+align-items:flex-start;
+}
+
+.ach-right{
+flex-wrap:wrap;
+gap:20px;
+}
+
+.view-all{
+width:100%;
+justify-content:center;
+}
+
+.mobile-nav{
+display:flex;
+position:fixed;
+bottom:0;
+left:0;
+width:100%;
+height:78px;
+background:white;
+border-top:2px solid #edf2ff;
+justify-content:space-around;
+align-items:center;
+z-index:99;
+}
+
+.mobile-item{
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:6px;
+font-size:.78rem;
+font-weight:700;
+color:#7582a8;
+}
+
+.active{
+color:#3567ff;
+}
+
+}
+
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<div class="main">
+
+<!-- HERO -->
+
+<section class="hero">
+
+<div>
+
+<div class="hero-left">
+
+<div class="avatar-wrap">
+
+<div class="avatar">
+K
+</div>
+
+<div class="edit-btn">
+✎
+</div>
+
+</div>
+
+<div class="hero-text">
+
+<h4>Welcome back,</h4>
+
+<h1>ksm1</h1>
+
+<div class="username">
+@ksm1
+</div>
+
+<div class="email">
+btea98058@gmail.com
+</div>
+
+<button class="edit-profile">
+✎ Edit Profile
+</button>
+
+</div>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+
+<div class="icon blue">
+📋
+</div>
+
+<div>
+<h2>6</h2>
+<span>Tests Completed</span>
+<small>Keep it up! You're doing great! 🎉</small>
+</div>
+
+</div>
+
+<div class="stat">
+
+<div class="icon green">
+🎯
+</div>
+
+<div>
+<h2>8%</h2>
+<span>Accuracy</span>
+<small>Focus & practice makes perfect! 🎯</small>
+</div>
+
+</div>
+
+<div class="stat">
+
+<div class="icon purple">
+🕒
+</div>
+
+<div>
+<h2>29 min</h2>
+<span>Study Time</span>
+<small>Every minute counts! 💪</small>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="hero-right">
+
+<img src="assets/history-hero.png">
+
+</div>
+
+</section>
+
+<!-- PROFILE DETAILS -->
+
+<section class="card">
+
+<div class="card-head">
+
+<div class="card-head-left">
+
+<div class="card-head-icon">
+🛡️
+</div>
+
+<div>
+
+<h2>Profile Details</h2>
+
+<p>
+Keep your BankCore identity clean and consistent across leaderboard entries and test history.
+</p>
+
+</div>
+
+</div>
+
+<img src="assets/security-placeholder.png" class="security">
+
+</div>
+
+<!-- DETAIL -->
+
+<div class="detail-box">
+
+<div class="detail-left">
+
+<div class="detail-icon purple-bg">
+👤
+</div>
+
+<div class="detail-content">
+
+<h4>USERNAME</h4>
+
+<h3>@ksm1</h3>
+
+<p>
+Use 3 to 24 lowercase letters, numbers, or underscores.
+</p>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- DETAIL -->
+
+<div class="detail-box">
+
+<div class="detail-left">
+
+<div class="detail-icon green-bg">
+🖼️
+</div>
+
+<div class="detail-content">
+
+<h4>PROFILE PHOTO</h4>
+
+<h3>No profile photo set</h3>
+
+<p>
+Add a profile photo to personalize your account.
+</p>
+
+</div>
+
+</div>
+
+<button class="upload-btn">
+⬆ Upload Photo
+</button>
+
+</div>
+
+</section>
+
+<!-- ACHIEVEMENTS -->
+
+<section class="achievement">
+
+<div class="ach-left">
+
+<img src="assets/medal-placeholder.png" class="medal">
+
+<div class="ach-text">
+
+<h2>You're on a roll!</h2>
+
+<p>
+Complete more tests to level up and unlock achievements.
+</p>
+
+</div>
+
+</div>
+
+<div class="ach-right">
+
+<div class="mini">
+
+<div class="mini-icon blue">
+5
+</div>
+
+<p>Tests</p>
+
+</div>
+
+<div class="mini">
+
+<div class="mini-icon green">
+🎯
+</div>
+
+<p>Accuracy</p>
+
+</div>
+
+<div class="mini">
+
+<div class="mini-icon purple">
+🔒
+</div>
+
+<p>Consistency</p>
+
+</div>
+
+<div class="view-all">
+
+View All →
+
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+</div>
+
+<!-- MOBILE NAV -->
+
+<div class="mobile-nav">
+
+<div class="mobile-item">
+🏠
+<span>Home</span>
+</div>
+
+<div class="mobile-item">
+📚
+<span>Tests</span>
+</div>
+
+<div class="mobile-item">
+🕒
+<span>History</span>
+</div>
+
+<div class="mobile-item active">
+👤
+<span>Profile</span>
+</div>
+
+</div>
+
+</body>
+</html>

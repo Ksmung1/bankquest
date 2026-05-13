@@ -1,0 +1,13 @@
+{
+  "outputDirectory": "dist",
+  "rewrites": [
+    {
+      "source": "/sso-login",
+      "destination": "/api/sso-login"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/"
+    }
+  ]
+}

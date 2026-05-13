@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+<title>BankCore Dashboard</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+
+*{
+margin:0;
+padding:0;
+box-sizing:border-box;
+}
+
+:root{
+
+--bg:#f4f7ff;
+--white:#ffffff;
+
+--text:#13254c;
+--textLight:#63708c;
+
+--blue:#4c7dff;
+--blue2:#2563ff;
+
+--orange:#ff9a2f;
+--orange2:#ff7a00;
+
+--purple:#a76cff;
+--purple2:#8f4dff;
+
+--pink:#ff5c97;
+--pink2:#ff3d79;
+
+--green:#48c774;
+
+--border:#e6ecfa;
+
+--shadow:
+0 10px 30px rgba(59,89,152,.08);
+
+}
+
+body{
+
+font-family:'Fredoka',sans-serif;
+background:var(--bg);
+color:var(--text);
+
+min-height:100vh;
+overflow-x:hidden;
+
+}
+
+/* APP */
+
+.app{
+
+display:grid;
+grid-template-columns:280px 1fr;
+
+min-height:100vh;
+
+}
+
+/* SIDEBAR */
+
+.sidebar{
+
+background:var(--white);
+
+padding:22px;
+
+border-right:1px solid var(--border);
+
+display:flex;
+flex-direction:column;
+
+}
+
+/* LOGO */
+
+.logo{
+
+display:flex;
+align-items:center;
+gap:14px;
+
+margin-bottom:34px;
+
+}
+
+.logo img{
+
+width:58px;
+height:58px;
+
+border-radius:18px;
+
+object-fit:cover;
+
+background:#ffe4c5;
+
+}
+
+.logo h1{
+
+font-family:'Baloo 2',cursive;
+font-size:2.2rem;
+
+}
+
+.logo span{
+color:var(--blue);
+}
+
+/* MENU */
+
+.menu{
+
+display:flex;
+flex-direction:column;
+gap:14px;
+
+}
+
+.menu a{
+
+text-decoration:none;
+color:var(--text);
+
+display:flex;
+align-items:center;
+gap:14px;
+
+padding:18px 20px;
+
+border-radius:22px;
+
+font-size:1.15rem;
+font-weight:700;
+
+transition:.2s;
+
+}
+
+.menu a:hover{
+
+background:#eef3ff;
+
+}
+
+.menu a.active{
+
+background:
+linear-gradient(180deg,#edf3ff,#dfeaff);
+
+color:var(--blue2);
+
+}
+
+/* PROFILE */
+
+.profile-card{
+
+margin-top:auto;
+
+background:#fff;
+
+border:1px solid var(--border);
+
+border-radius:34px;
+
+padding:22px;
+
+box-shadow:var(--shadow);
+
+}
+
+.profile-top{
+
+display:flex;
+gap:16px;
+align-items:center;
+
+margin-bottom:20px;
+
+}
+
+.profile-top img{
+
+width:86px;
+height:86px;
+
+border-radius:50%;
+
+object-fit:cover;
+
+border:5px solid #ffd55c;
+
+}
+
+.profile-top h2{
+
+font-family:'Baloo 2',cursive;
+font-size:1.9rem;
+
+line-height:1;
+
+}
+
+.profile-top p{
+
+color:var(--purple2);
+font-weight:700;
+
+margin-top:4px;
+
+}
+
+/* XP */
+
+.level{
+
+margin-bottom:18px;
+
+}
+
+.xp{
+
+height:18px;
+
+background:#eef2fb;
+
+border-radius:999px;
+
+overflow:hidden;
+
+margin-top:8px;
+
+}
+
+.xp div{
+
+width:48%;
+height:100%;
+
+background:
+linear-gradient(90deg,#5ca6ff,#3d6cff);
+
+}
+
+/* STREAK */
+
+.streak{
+
+padding-top:16px;
+
+border-top:1px solid var(--border);
+
+}
+
+.streak h3{
+
+font-family:'Baloo 2',cursive;
+font-size:1.7rem;
+
+margin-bottom:8px;
+
+}
+
+.streak-row{
+
+display:flex;
+gap:10px;
+
+margin-top:14px;
+
+}
+
+.dot{
+
+width:22px;
+height:22px;
+
+border-radius:50%;
+
+background:#edf2fb;
+
+}
+
+.dot.active{
+background:#48c774;
+}
+
+/* MAIN */
+
+.main{
+
+padding:24px;
+
+}
+
+/* GRID */
+
+.dashboard{
+
+display:grid;
+grid-template-columns:1fr 340px;
+
+gap:22px;
+
+}
+
+/* HERO */
+
+.hero{
+
+position:relative;
+
+overflow:hidden;
+
+background:
+linear-gradient(rgba(255,255,255,.1),rgba(255,255,255,.1)),
+url('assets/hero-placeholder.png');
+
+background-size:cover;
+background-position:center;
+
+border-radius:34px;
+
+padding:34px;
+
+min-height:280px;
+
+box-shadow:var(--shadow);
+
+}
+
+.hero::after{
+
+content:'';
+
+position:absolute;
+inset:0;
+
+background:
+radial-gradient(circle at top right,rgba(255,255,255,.2),transparent 35%);
+
+pointer-events:none;
+
+}
+
+.hero-content{
+
+position:relative;
+z-index:2;
+
+max-width:520px;
+
+}
+
+.hero h1{
+
+font-family:'Baloo 2',cursive;
+
+font-size:5rem;
+line-height:.88;
+
+margin-bottom:16px;
+
+}
+
+.hero h1 span{
+color:var(--blue2);
+}
+
+.hero-box{
+
+display:inline-flex;
+align-items:center;
+gap:12px;
+
+padding:16px 22px;
+
+background:white;
+
+border-radius:20px;
+
+box-shadow:var(--shadow);
+
+font-weight:700;
+
+}
+
+/* SECTION TITLE */
+
+.ribbon{
+
+display:inline-flex;
+align-items:center;
+justify-content:center;
+
+padding:10px 24px;
+
+border-radius:14px;
+
+font-family:'Baloo 2',cursive;
+font-size:1.5rem;
+
+color:white;
+
+margin-bottom:18px;
+
+box-shadow:var(--shadow);
+
+}
+
+.ribbon.blue{
+background:linear-gradient(180deg,#5ca6ff,#3d6cff);
+}
+
+.ribbon.purple{
+background:linear-gradient(180deg,#b477ff,#8f4dff);
+}
+
+.ribbon.pink{
+background:linear-gradient(180deg,#ff6aa0,#ff3d79);
+}
+
+/* QUICK */
+
+.quick{
+
+margin-top:22px;
+
+background:
+linear-gradient(180deg,#ffae3d,#ff8100);
+
+border-radius:28px;
+
+padding:22px 28px;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+color:white;
+
+font-size:2rem;
+font-weight:800;
+
+box-shadow:
+0 12px 20px rgba(255,140,0,.25);
+
+cursor:pointer;
+
+}
+
+/* SIDE */
+
+.side{
+
+display:flex;
+flex-direction:column;
+gap:22px;
+
+}
+
+/* SIDE CARD */
+
+.side-card{
+
+background:white;
+
+border-radius:30px;
+
+padding:20px;
+
+box-shadow:var(--shadow);
+
+min-height:190px;
+
+}
+
+/* PERFORMANCE */
+
+.performance{
+
+margin-top:22px;
+
+background:white;
+
+border-radius:36px;
+
+padding:24px;
+
+box-shadow:var(--shadow);
+
+}
+
+.performance-grid{
+
+display:grid;
+grid-template-columns:repeat(3,1fr);
+
+gap:20px;
+
+}
+
+.perf{
+
+text-align:center;
+
+}
+
+.circle{
+
+width:150px;
+height:150px;
+
+border-radius:50%;
+
+margin:auto;
+
+background:white;
+
+border:12px solid #ff8b2b;
+
+display:flex;
+align-items:center;
+justify-content:center;
+flex-direction:column;
+
+box-shadow:
+0 10px 20px rgba(255,140,0,.18);
+
+margin-bottom:14px;
+
+}
+
+.circle h3{
+
+font-size:3rem;
+
+}
+
+/* JOURNEY */
+
+.journey{
+
+margin-top:22px;
+
+background:white;
+
+border-radius:36px;
+
+padding:24px;
+
+box-shadow:var(--shadow);
+
+}
+
+.chests{
+
+display:grid;
+grid-template-columns:repeat(5,1fr);
+
+gap:20px;
+
+text-align:center;
+
+}
+
+.chest img{
+
+width:100%;
+max-width:120px;
+
+display:block;
+
+margin:auto auto 10px;
+
+}
+
+/* QUESTS */
+
+.quest-panel{
+
+background:white;
+
+border-radius:34px;
+
+padding:20px;
+
+box-shadow:var(--shadow);
+
+}
+
+.quest{
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+padding:16px;
+
+border-radius:20px;
+
+background:#fffaf3;
+
+margin-bottom:14px;
+
+border:1px solid #f4eadc;
+
+}
+
+.quest-left{
+
+display:flex;
+gap:14px;
+align-items:center;
+
+}
+
+.quest img{
+
+width:56px;
+height:56px;
+
+border-radius:16px;
+object-fit:cover;
+
+}
+
+/* MOBILE NAV */
+
+.mobile-nav{
+
+display:none;
+
+}
+
+/* MOBILE */
+
+@media(max-width:1200px){
+
+.app{
+grid-template-columns:1fr;
+}
+
+.sidebar{
+display:none;
+}
+
+.dashboard{
+grid-template-columns:1fr;
+}
+
+.chests{
+grid-template-columns:repeat(2,1fr);
+}
+
+.mobile-nav{
+
+position:fixed;
+
+left:50%;
+bottom:14px;
+
+transform:translateX(-50%);
+
+width:92%;
+max-width:520px;
+
+display:flex;
+justify-content:space-between;
+align-items:center;
+
+background:white;
+
+padding:14px 18px;
+
+border-radius:28px;
+
+box-shadow:
+0 15px 30px rgba(0,0,0,.12);
+
+z-index:999;
+
+}
+
+.mobile-nav a{
+
+text-decoration:none;
+color:var(--textLight);
+
+display:flex;
+flex-direction:column;
+align-items:center;
+gap:6px;
+
+font-size:.8rem;
+font-weight:700;
+
+}
+
+.mobile-nav a.active{
+
+color:var(--blue2);
+
+background:#edf3ff;
+
+padding:10px 14px;
+
+border-radius:18px;
+
+}
+
+}
+
+@media(max-width:700px){
+
+.main{
+
+padding:16px;
+padding-bottom:120px;
+
+}
+
+.hero{
+
+padding:24px;
+min-height:auto;
+
+}
+
+.hero h1{
+
+font-size:3.1rem;
+
+}
+
+.quick{
+
+font-size:1.3rem;
+
+}
+
+.performance-grid{
+
+grid-template-columns:1fr;
+
+}
+
+.chests{
+
+grid-template-columns:1fr 1fr;
+
+}
+
+.circle{
+
+width:120px;
+height:120px;
+
+}
+
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+<!-- SIDEBAR -->
+
+<aside class="sidebar">
+
+<div class="logo">
+
+<img src="assets/logo.png">
+
+<h1>
+Bank<span>Core</span>
+</h1>
+
+</div>
+
+<div class="menu">
+
+<a class="active" href="#">
+🏠 Home
+</a>
+
+<a href="#">
+📜 Tests
+</a>
+
+<a href="#">
+⏰ History
+</a>
+
+<a href="#">
+👤 Profile
+</a>
+
+</div>
+
+<div class="profile-card">
+
+<div class="profile-top">
+
+<img src="assets/avatar.png">
+
+<div>
+
+<h2>
+Alex Vision
+</h2>
+
+<p>
+⭐ Rookie
+</p>
+
+</div>
+
+</div>
+
+<div class="level">
+
+<h3>
+Level 3
+</h3>
+
+<div class="xp">
+<div></div>
+</div>
+
+</div>
+
+<div class="streak">
+
+<h3>
+🔥 Daily Streak
+</h3>
+
+<p>
+2 Days
+</p>
+
+<div class="streak-row">
+
+<div class="dot active"></div>
+<div class="dot active"></div>
+<div class="dot"></div>
+<div class="dot"></div>
+<div class="dot"></div>
+<div class="dot"></div>
+
+</div>
+
+</div>
+
+</div>
+
+</aside>
+
+<!-- MAIN -->
+
+<main class="main">
+
+<div class="dashboard">
+
+<!-- LEFT -->
+
+<div>
+
+<!-- HERO -->
+
+<section class="hero">
+
+<div class="hero-content">
+
+<h1>
+
+Keep going!
+<br>
+
+<span>
+You're making
+progress!
+</span>
+
+</h1>
+
+<div class="hero-box">
+
+🏆 Every test brings you closer to your goal!
+
+</div>
+
+</div>
+
+</section>
+
+<!-- QUICK -->
+
+<div class="quick">
+
+<div>
+⚔️ START MOCK TEST
+</div>
+
+<div>
+➜
+</div>
+
+</div>
+
+<!-- PERFORMANCE -->
+
+<section class="performance">
+
+<div class="ribbon blue">
+MY PERFORMANCE
+</div>
+
+<div class="performance-grid">
+
+<div class="perf">
+
+<div class="circle">
+
+<h3>
+0%
+</h3>
+
+<p>
+Accuracy
+</p>
+
+</div>
+
+</div>
+
+<div class="perf">
+
+<h1 style="font-size:5rem;">
+📋
+</h1>
+
+<h2>
+0
+</h2>
+
+<p>
+Tests Completed
+</p>
+
+</div>
+
+<div class="perf">
+
+<h1 style="font-size:5rem;">
+⏰
+</h1>
+
+<h2>
+0min
+</h2>
+
+<p>
+Total Time
+</p>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- JOURNEY -->
+
+<section class="journey">
+
+<div class="ribbon purple">
+YOUR JOURNEY
+</div>
+
+<div class="chests">
+
+<div class="chest">
+<img src="assets/chest1.png">
+<h3>Rookie</h3>
+</div>
+
+<div class="chest">
+<img src="assets/chest2.png">
+<h3>Challenger</h3>
+</div>
+
+<div class="chest">
+<img src="assets/chest3.png">
+<h3>Warrior</h3>
+</div>
+
+<div class="chest">
+<img src="assets/chest4.png">
+<h3>Champion</h3>
+</div>
+
+<div class="chest">
+<img src="assets/chest5.png">
+<h3>Legend</h3>
+</div>
+
+</div>
+
+</section>
+
+</div>
+
+<!-- RIGHT -->
+
+<div class="side">
+
+<div class="side-card">
+
+<div class="ribbon purple">
+RECENT ACTIVITIES
+</div>
+
+<p style="margin-top:18px; color:#63708c;">
+No attempts yet.
+</p>
+
+</div>
+
+<div class="side-card">
+
+<div class="ribbon blue">
+WEEKLY PROGRESS
+</div>
+
+</div>
+
+<div class="quest-panel">
+
+<div class="ribbon pink">
+DAILY QUESTS
+</div>
+
+<div class="quest">
+
+<div class="quest-left">
+
+<img src="assets/quest1.png">
+
+<div>
+
+<h3>
+Attempt 1 Mock Test
+</h3>
+
+<p>
+0 / 1
+</p>
+
+</div>
+
+</div>
+
+<h2>
+⭐ +20
+</h2>
+
+</div>
+
+<div class="quest">
+
+<div class="quest-left">
+
+<img src="assets/quest2.png">
+
+<div>
+
+<h3>
+Score 70% or more
+</h3>
+
+<p>
+0 / 1
+</p>
+
+</div>
+
+</div>
+
+<h2>
+⭐ +30
+</h2>
+
+</div>
+
+<div class="quest">
+
+<div class="quest-left">
+
+<img src="assets/quest3.png">
+
+<div>
+
+<h3>
+Study for 30 Minutes
+</h3>
+
+<p>
+0 / 30
+</p>
+
+</div>
+
+</div>
+
+<h2>
+⭐ +15
+</h2>
+
+</div>
+
+</div>
+
+</div>
+
+</main>
+
+</div>
+
+<!-- MOBILE NAV -->
+
+<nav class="mobile-nav">
+
+<a class="active" href="#">
+🏠
+<span>Home</span>
+</a>
+
+<a href="#">
+📜
+<span>Tests</span>
+</a>
+
+<a href="#">
+⭐
+<span>Quest</span>
+</a>
+
+<a href="#">
+📊
+<span>Stats</span>
+</a>
+
+<a href="#">
+👤
+<span>Profile</span>
+</a>
+
+</nav>
+
+</body>
+</html>
