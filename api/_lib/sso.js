@@ -16,19 +16,47 @@ function getSharedSecret() {
   return getEnv('SSO_SHARED_SECRET');
 }
 
+function normalizeUrl(value) {
+  return String(value).replace(/\/+$/, '');
+}
+
+function isLocalUrl(value) {
+  return /^(https?:\/\/)?(localhost|127\.0\.0\.1|0\.0\.0\.0)(:\d+)?(\/|$)/i.test(String(value).trim());
+}
+
 function getAppUrl(request) {
-  const configured = process.env.EXPO_PUBLIC_APP_URL;
-  if (configured) {
-    return configured.replace(/\/+$/, '');
+  const websiteBUrl = process.env.WEBSITE_B_URL;
+  if (websiteBUrl) {
+    return normalizeUrl(websiteBUrl);
   }
 
   const host = request.headers.host;
-  const protocol =
-    process.env.NODE_ENV === 'production'
-      ? 'https'
-      : (request.headers['x-forwarded-proto'] || 'http');
+  if (host && !isLocalUrl(host)) {
+    const forwardedProtocol = request.headers['x-forwarded-proto'];
+    const protocol =
+      typeof forwardedProtocol === 'string' && forwardedProtocol
+        ? forwardedProtocol
+        : 'https';
+    return `${protocol}://${host}`;
+  }
 
-  return `${protocol}://${host}`;
+  const configured = process.env.EXPO_PUBLIC_APP_URL;
+  if (configured && !isLocalUrl(configured)) {
+    return normalizeUrl(configured);
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://bankcore.vercel.app';
+  } else {
+    return 'https://bankcore.vercel.app';
+  }
+
+  const protocol =
+    typeof request.headers['x-forwarded-proto'] === 'string' && request.headers['x-forwarded-proto']
+      ? request.headers['x-forwarded-proto']
+      : 'https';
+
+  return 'https://bankcore.vercel.app';
 }
 
 function base64UrlDecode(value) {
