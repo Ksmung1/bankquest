@@ -1,11 +1,12 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { Stack } from 'expo-router';
+import { Stack, useGlobalSearchParams, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { cacheSession, prewarmAppData } from '@/lib/app-data-cache';
+import { isPortalLinkedSession, isSSOCallbackPath } from '@/lib/portal-access';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { syncUserProfile } from '@/lib/user-profile';
 import { PortalReportFab } from '@/components/portal-report-fab';
@@ -16,6 +17,11 @@ export const unstable_settings = {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const pathname = usePathname();
+  const router = useRouter();
+  const params = useGlobalSearchParams();
+  const [accessReady, setAccessReady] = useState(!hasSupabaseConfig);
+  const [hasPortalAccess, setHasPortalAccess] = useState(!hasSupabaseConfig);
 
   useEffect(() => {
     if (!supabase || !hasSupabaseConfig) return;
@@ -24,8 +30,11 @@ export default function RootLayout() {
     const syncFromSession = async () => {
       const { data } = await client.auth.getSession();
       cacheSession(data.session ?? null);
+      const linked = isPortalLinkedSession(data.session);
+      setHasPortalAccess(linked);
+      setAccessReady(true);
       const user = data.session?.user;
-      if (!user?.id) {
+      if (!user?.id || !linked) {
         prewarmAppData(null);
         return;
       }
@@ -41,8 +50,11 @@ export default function RootLayout() {
 
     const { data } = client.auth.onAuthStateChange(async (_event, session) => {
       cacheSession(session ?? null);
+      const linked = isPortalLinkedSession(session);
+      setHasPortalAccess(linked);
+      setAccessReady(true);
       const user = session?.user;
-      if (!user?.id) {
+      if (!user?.id || !linked) {
         prewarmAppData(null);
         return;
       }
@@ -57,6 +69,31 @@ export default function RootLayout() {
     return () => data.subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    if (!accessReady) {
+      return;
+    }
+
+    const inSSOCallback = isSSOCallbackPath(pathname, params);
+
+    if (hasPortalAccess && pathname === '/auth' && !inSSOCallback) {
+      router.replace('/' as never);
+      return;
+    }
+
+    if (!hasPortalAccess && pathname !== '/auth' && !inSSOCallback) {
+      router.replace('/auth' as never);
+    }
+  }, [accessReady, hasPortalAccess, params, pathname, router]);
+
+  if (!accessReady) {
+    return null;
+  }
+
+  if (!hasPortalAccess && pathname !== '/auth' && !isSSOCallbackPath(pathname, params)) {
+    return null;
+  }
+
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <Stack screenOptions={{ headerShown: false }}>
@@ -68,7 +105,7 @@ export default function RootLayout() {
         <Stack.Screen name="mock-test/[testid]/index" options={{ headerShown: false }} />
         <Stack.Screen name="saved" options={{ headerShown: false }} />
       </Stack>
-      <PortalReportFab />
+      {hasPortalAccess ? <PortalReportFab /> : null}
       <StatusBar style="auto" />
     </ThemeProvider>
   );

@@ -157,7 +157,6 @@ function SidebarNav({
           <Image source={avatarUrl ? { uri: avatarUrl } : require('@/assets/images/profile.png')} style={styles.profileAvatar} />
           <View style={styles.profileTextWrap}>
             <Text style={styles.profileName} numberOfLines={1}>{userName}</Text>
-            <Text style={styles.profileSubtitle}>Your BankCore profile</Text>
           </View>
         </View>
       </View>
@@ -166,12 +165,15 @@ function SidebarNav({
 }
 
 function Hero() {
+  const heroAspectRatio =
+    heroAsset.width && heroAsset.height ? heroAsset.width / heroAsset.height : 16 / 9;
+
   return (
     <ExpoImage
       source={heroSource}
       contentFit="contain"
       contentPosition="center"
-      style={[styles.heroImage, { aspectRatio: heroAsset.width / heroAsset.height }]}
+      style={[styles.heroImage, { aspectRatio: heroAspectRatio }]}
     />
   );
 }
@@ -649,8 +651,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   profileTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: 16,
     marginBottom: 20,
   },
@@ -662,7 +664,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFD55C',
   },
   profileTextWrap: {
-    flex: 1,
     minWidth: 0,
   },
   profileName: {

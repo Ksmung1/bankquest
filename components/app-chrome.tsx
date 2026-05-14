@@ -243,8 +243,8 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   profileTop: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: 'column',
+    alignItems: 'flex-start',
     gap: 16,
   },
   profileAvatar: {
@@ -255,7 +255,6 @@ const styles = StyleSheet.create({
     borderColor: '#FFD55C',
   },
   profileTextWrap: {
-    flex: 1,
     minWidth: 0,
   },
   profileName: {

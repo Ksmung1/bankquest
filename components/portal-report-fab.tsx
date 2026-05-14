@@ -44,7 +44,7 @@ export function PortalReportFab() {
         message: form.message,
       });
       setForm(initialForm);
-      setStatusMessage('Report submitted to Website A.');
+      setStatusMessage('Report submitted to Thanghou for admin review.');
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit report.');
     } finally {
