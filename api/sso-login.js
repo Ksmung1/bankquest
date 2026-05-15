@@ -1,4 +1,4 @@
-const { createMagicLink, provisionLocalUser, requireVerifiedSSOToken, trackActivity } = require('./_lib/sso');
+const { createMagicLink, getAuthCallbackUrl, provisionLocalUser, requireVerifiedSSOToken, trackActivity } = require('./_lib/sso');
 
 module.exports = async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -17,6 +17,6 @@ module.exports = async function handler(req, res) {
     res.redirect(302, actionLink);
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unable to complete the SSO login.';
-    res.redirect(302, `/auth?sso_error=${encodeURIComponent(message)}`);
+    res.redirect(302, getAuthCallbackUrl(req, { sso_error: message }));
   }
 };

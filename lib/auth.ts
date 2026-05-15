@@ -25,6 +25,18 @@ function requireSupabase() {
   return supabase;
 }
 
+function getWebsiteAuthUrl() {
+  const websiteUrl =
+    process.env.EXPO_PUBLIC_WEBSITE_B_URL ??
+    process.env.EXPO_PUBLIC_APP_URL;
+
+  if (websiteUrl) {
+    return `${websiteUrl.replace(/\/+$/, '')}/auth`;
+  }
+
+  return Linking.createURL('/auth');
+}
+
 export function formatAuthErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : 'Authentication failed.';
   const normalized = message.toLowerCase();
@@ -128,10 +140,8 @@ export async function sendPasswordReset(email: string) {
     throw new Error('Enter a valid email address.');
   }
 
-const redirectTo =
-  process.env.NODE_ENV === 'production'
-    ? 'https://your-domain.vercel.app/auth'
-    : Linking.createURL('/auth');  const { error } = await client.auth.resetPasswordForEmail(cleanEmail, {
+  const redirectTo = getWebsiteAuthUrl();
+  const { error } = await client.auth.resetPasswordForEmail(cleanEmail, {
     redirectTo,
   });
 

@@ -23,12 +23,24 @@ function normalizeUrl(value) {
 function getAppUrl(request) {
   void request;
 
-  const websiteBUrl = process.env.WEBSITE_B_URL;
-  if (websiteBUrl) {
-    return normalizeUrl(websiteBUrl);
+  const websiteBUrl = process.env.WEBSITE_B_URL || process.env.EXPO_PUBLIC_APP_URL;
+  if (!websiteBUrl) {
+    throw new Error('Missing WEBSITE_B_URL environment variable.');
   }
 
-  return 'https://bankcore.vercel.app';
+  return normalizeUrl(websiteBUrl);
+}
+
+function getAuthCallbackUrl(request, extraParams = {}) {
+  const authUrl = new URL('/auth', getAppUrl(request));
+
+  Object.entries(extraParams).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      authUrl.searchParams.set(key, String(value));
+    }
+  });
+
+  return authUrl.toString();
 }
 
 function base64UrlDecode(value) {
@@ -283,7 +295,7 @@ async function provisionLocalUser(tokenPayload) {
 
 async function createMagicLink(email, request) {
   const admin = getServiceSupabase();
-  const redirectTo = `${getAppUrl(request)}/auth?sso=1`;
+  const redirectTo = getAuthCallbackUrl(request, { sso: '1' });
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,
@@ -306,6 +318,7 @@ async function trackActivity(user, action) {
 
 module.exports = {
   createMagicLink,
+  getAuthCallbackUrl,
   getAppUrl,
   provisionLocalUser,
   requireVerifiedSSOToken,
