@@ -205,9 +205,9 @@ export default function ProfilePage() {
       }
 
       if (!session?.user?.id) {
-        clearAppDataCache();
-        setProfile(null);
-        if (event === 'INITIAL_SESSION' || event === 'SIGNED_OUT' || initialResolved) {
+        if (event === 'SIGNED_OUT') {
+          clearAppDataCache();
+          setProfile(null);
           router.replace('/auth');
         }
         return;

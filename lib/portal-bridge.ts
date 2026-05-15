@@ -62,15 +62,35 @@ async function getAccessToken() {
   return token;
 }
 
+async function fetchWithTimeout(input: RequestInfo | URL, init: RequestInit, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(input, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postToPortal(path: string, body: unknown) {
   const accessToken = await getAccessToken();
-  const response = await fetch(path, {
+  const response = await fetchWithTimeout(path, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+  }).catch((error) => {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Portal request timed out. Please try again.');
+    }
+
+    throw error;
   });
 
   const payload = (await response.json().catch(() => ({}))) as { error?: string };

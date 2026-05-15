@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { cacheSession, prewarmAppData } from '@/lib/app-data-cache';
+import { cacheSession, getCachedSession, prewarmAppData } from '@/lib/app-data-cache';
 import { isPortalLinkedSession, isSSOCallbackPath } from '@/lib/portal-access';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { syncUserProfile } from '@/lib/user-profile';
@@ -28,12 +28,12 @@ export default function RootLayout() {
     const client = supabase;
 
     const syncFromSession = async () => {
-      const { data } = await client.auth.getSession();
-      cacheSession(data.session ?? null);
-      const linked = isPortalLinkedSession(data.session);
+      const session = await getCachedSession();
+      cacheSession(session ?? null);
+      const linked = isPortalLinkedSession(session);
       setHasPortalAccess(linked);
       setAccessReady(true);
-      const user = data.session?.user;
+      const user = session?.user;
       if (!user?.id || !linked) {
         prewarmAppData(null);
         return;
@@ -48,7 +48,7 @@ export default function RootLayout() {
 
     syncFromSession();
 
-    const { data } = client.auth.onAuthStateChange(async (_event, session) => {
+    const { data } = client.auth.onAuthStateChange(async (event, session) => {
       cacheSession(session ?? null);
       const linked = isPortalLinkedSession(session);
       setHasPortalAccess(linked);
@@ -56,6 +56,9 @@ export default function RootLayout() {
       const user = session?.user;
       if (!user?.id || !linked) {
         prewarmAppData(null);
+        if (event === 'SIGNED_OUT') {
+          setHasPortalAccess(false);
+        }
         return;
       }
       prewarmAppData(user.id);

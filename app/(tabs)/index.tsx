@@ -504,9 +504,9 @@ export default function HomeScreen() {
     loadUser();
 
     if (!client) return;
-    const { data } = client.auth.onAuthStateChange(async (_event, session) => {
+    const { data } = client.auth.onAuthStateChange(async (event, session) => {
       cacheSession(session);
-      if (!session?.user?.id) {
+      if (!session?.user?.id && event === 'SIGNED_OUT') {
         clearAppDataCache();
       }
       await applySession(session);

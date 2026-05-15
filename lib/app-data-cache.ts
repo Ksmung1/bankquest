@@ -60,6 +60,8 @@ const mockTitleCollator = new Intl.Collator(undefined, {
 
 const SESSION_TTL_MS = 30 * 1000;
 const NULL_SESSION_TTL_MS = 2 * 1000;
+const SESSION_RECOVERY_ATTEMPTS = 4;
+const SESSION_RECOVERY_DELAY_MS = 250;
 const USER_DASHBOARD_TTL_MS = 60 * 1000;
 const HISTORY_TTL_MS = 60 * 1000;
 const MOCKS_TTL_MS = 5 * 60 * 1000;
@@ -195,15 +197,31 @@ export async function getCachedSession() {
     return sessionCache.pending;
   }
 
-  sessionCache.pending = supabase.auth.getSession()
-    .then(({ data }) => {
-      const session = data.session ?? null;
+  sessionCache.pending = (async () => {
+      let session: Session | null = null;
+
+      for (let attempt = 0; attempt < SESSION_RECOVERY_ATTEMPTS; attempt += 1) {
+        const { data } = await supabase.auth.getSession();
+        session = data.session ?? null;
+
+        if (session?.user?.id) {
+          break;
+        }
+
+        const isBrowserRuntime = typeof window !== 'undefined';
+        if (!isBrowserRuntime || attempt === SESSION_RECOVERY_ATTEMPTS - 1) {
+          break;
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, SESSION_RECOVERY_DELAY_MS));
+      }
+
       sessionCache.entry = {
         data: session,
         expiresAt: Date.now() + SESSION_TTL_MS,
       };
       return session;
-    })
+    })()
     .catch((error) => {
       console.error('Failed to load session', error);
       return null;

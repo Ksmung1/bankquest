@@ -196,10 +196,10 @@ export default function HistoryPage() {
       return;
     }
 
-    const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data } = supabase.auth.onAuthStateChange((event, session) => {
       cacheSession(session);
       setSessionUserId(session?.user?.id ?? null);
-      if (!session?.user?.id) {
+      if (!session?.user?.id && event === 'SIGNED_OUT') {
         router.replace('/auth');
       }
     });

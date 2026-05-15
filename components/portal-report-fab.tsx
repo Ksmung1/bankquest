@@ -45,6 +45,7 @@ export function PortalReportFab() {
       });
       setForm(initialForm);
       setStatusMessage('Report submitted to Thanghou for admin review.');
+      setIsOpen(false);
     } catch (error) {
       setErrorMessage(error instanceof Error ? error.message : 'Failed to submit report.');
     } finally {
