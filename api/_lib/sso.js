@@ -312,8 +312,52 @@ async function createMagicLink(email, request) {
 }
 
 async function trackActivity(user, action) {
-  void user;
-  void action;
+  const externalId = String(user?.user_metadata?.external_id || '').trim();
+  const email = String(user?.email || '').trim().toLowerCase();
+  const name = String(
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    email.split('@')[0] ||
+    'User'
+  ).trim();
+  const role = String(user?.user_metadata?.role || 'tester').trim() || 'tester';
+
+  if (!externalId || !email || !action) {
+    return;
+  }
+
+  const issuedAt = Math.floor(Date.now() / 1000);
+  const encodedHeader = Buffer.from(JSON.stringify({ alg: 'HS256', typ: 'JWT' })).toString('base64url');
+  const encodedPayload = Buffer.from(JSON.stringify({
+    iss: 'bankquest',
+    aud: 'thanghou-liandou',
+    sub: externalId,
+    email,
+    name,
+    role,
+    iat: issuedAt,
+    exp: issuedAt + 60,
+    event: action,
+  })).toString('base64url');
+  const signature = crypto
+    .createHmac('sha256', getSharedSecret())
+    .update(`${encodedHeader}.${encodedPayload}`)
+    .digest('base64url');
+
+  const websiteAUrl = getEnv('WEBSITE_A_URL').replace(/\/+$/, '');
+
+  try {
+    await fetch(`${websiteAUrl}/api/sso/bankquest/sync`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${encodedHeader}.${encodedPayload}.${signature}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ok: true }),
+    });
+  } catch (error) {
+    console.error('Failed to sync portal activity.', error);
+  }
 }
 
 module.exports = {

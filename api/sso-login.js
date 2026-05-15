@@ -10,7 +10,11 @@ module.exports = async function handler(req, res) {
   try {
     const payload = requireVerifiedSSOToken(req);
     const provisioned = await provisionLocalUser(payload);
-    await trackActivity(provisioned.authUser, 'sso_login_initiated');
+    await trackActivity(provisioned.authUser, {
+      type: 'project_login',
+      projectName: 'Bank & SSC',
+      message: 'Logged in through the Thanghou project portal.',
+    });
 
     const actionLink = await createMagicLink(provisioned.email, req);
     res.setHeader('Cache-Control', 'no-store');

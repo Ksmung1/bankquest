@@ -432,7 +432,9 @@ export default function MockTestDetailPage() {
 
     try {
       await trackActivity(sessionUserId, {
+        type: 'mock_test_completed',
         projectName: 'Bank & SSC',
+        attemptId: String(attemptInsert?.id ?? ''),
         testId: String(testid),
         testTitle: String(payload?.title ?? testid),
         scoreTotal: scores.totalScore,

@@ -9,31 +9,71 @@ module.exports = async function handler(req, res) {
 
   try {
     const identity = await resolvePortalIdentity(req);
-    const {
-      projectName,
-      testId,
-      testTitle,
-      scoreTotal,
-      attemptedTotal,
-      totalQuestions,
-      timeSpentSeconds,
-    } = req.body || {};
+    const body = req.body || {};
+    const type = typeof body.type === 'string' ? body.type : '';
+    const projectName = typeof body.projectName === 'string' ? body.projectName : '';
 
-    if (!projectName || !testId || !testTitle) {
+    if (!projectName || !type) {
       res.status(400).json({ error: 'Incomplete activity payload.' });
       return;
     }
 
-    const payload = await forwardPortalEvent(identity, {
-      type: 'mock_test_completed',
-      projectName: String(projectName),
-      testId: String(testId),
-      testTitle: String(testTitle),
-      scoreTotal: Number(scoreTotal ?? 0),
-      attemptedTotal: Number(attemptedTotal ?? 0),
-      totalQuestions: Number(totalQuestions ?? 0),
-      timeSpentSeconds: Number(timeSpentSeconds ?? 0),
-    });
+    let event;
+
+    if (type === 'mock_test_completed') {
+      if (!body.testId || !body.testTitle || !body.attemptId) {
+        res.status(400).json({ error: 'Incomplete mock activity payload.' });
+        return;
+      }
+
+      event = {
+        type,
+        projectName,
+        attemptId: String(body.attemptId),
+        testId: String(body.testId),
+        testTitle: String(body.testTitle),
+        scoreTotal: Number(body.scoreTotal ?? 0),
+        attemptedTotal: Number(body.attemptedTotal ?? 0),
+        totalQuestions: Number(body.totalQuestions ?? 0),
+        timeSpentSeconds: Number(body.timeSpentSeconds ?? 0),
+      };
+    } else if (type === 'project_login') {
+      event = {
+        type,
+        projectName,
+        message: typeof body.message === 'string' ? body.message : '',
+      };
+    } else if (type === 'rank_unlocked') {
+      if (!body.rankKey || !body.rankLabel) {
+        res.status(400).json({ error: 'Incomplete rank activity payload.' });
+        return;
+      }
+
+      event = {
+        type,
+        projectName,
+        rankKey: String(body.rankKey),
+        rankLabel: String(body.rankLabel),
+        averageScore: Number(body.averageScore ?? 0),
+      };
+    } else if (type === 'card_collected') {
+      if (!body.cardKey || !body.cardLabel) {
+        res.status(400).json({ error: 'Incomplete card activity payload.' });
+        return;
+      }
+
+      event = {
+        type,
+        projectName,
+        cardKey: String(body.cardKey),
+        cardLabel: String(body.cardLabel),
+      };
+    } else {
+      res.status(400).json({ error: 'Unsupported activity type.' });
+      return;
+    }
+
+    const payload = await forwardPortalEvent(identity, event);
 
     res.status(200).json(payload);
   } catch (error) {

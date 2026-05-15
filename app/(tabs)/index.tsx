@@ -22,6 +22,8 @@ import {
   getCachedUserProfile,
 } from '@/lib/app-data-cache';
 import { getPausedMockAttempt, type PausedMockAttempt } from '@/lib/mock-test-resume';
+import { isPortalLinkedSession } from '@/lib/portal-access';
+import { trackActivity } from '@/lib/portal-bridge';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
 type Mode = 'mobile' | 'tablet' | 'desktop';
@@ -416,11 +418,14 @@ export default function HomeScreen() {
   const [performance, setPerformance] = useState<UserPerformance>(defaultPerformance);
   const [activities, setActivities] = useState<RecentActivityItem[]>([]);
   const [weeklyPoints, setWeeklyPoints] = useState<WeeklyPoint[]>(emptyWeeklyPoints);
+  const [portalLinkedUserId, setPortalLinkedUserId] = useState<string | null>(null);
+  const [dashboardReady, setDashboardReady] = useState(false);
 
   const desktop = mode === 'desktop';
   const isMobile = mode === 'mobile';
 
   const applySession = useCallback(async (session: Awaited<ReturnType<typeof getCachedSession>>) => {
+    setDashboardReady(false);
     const userId = session?.user?.id ?? null;
     if (!userId) {
       setUserName('User');
@@ -428,8 +433,12 @@ export default function HomeScreen() {
       setPerformance(defaultPerformance);
       setActivities([]);
       setWeeklyPoints(emptyWeeklyPoints);
+      setPortalLinkedUserId(null);
+      setDashboardReady(true);
       return;
     }
+
+    setPortalLinkedUserId(isPortalLinkedSession(session) ? userId : null);
 
     const profile = await getCachedUserProfile(userId);
     const metaUsername =
@@ -452,6 +461,7 @@ export default function HomeScreen() {
     });
     setActivities(dashboard.activities);
     setWeeklyPoints(dashboard.weeklyPoints);
+    setDashboardReady(true);
   }, []);
 
   const refreshHomeData = useCallback(async () => {
@@ -462,6 +472,8 @@ export default function HomeScreen() {
       setPerformance(defaultPerformance);
       setActivities([]);
       setWeeklyPoints(emptyWeeklyPoints);
+      setPortalLinkedUserId(null);
+      setDashboardReady(true);
       return;
     }
 
@@ -480,6 +492,8 @@ export default function HomeScreen() {
         setPerformance(defaultPerformance);
         setActivities([]);
         setWeeklyPoints(emptyWeeklyPoints);
+        setPortalLinkedUserId(null);
+        setDashboardReady(true);
         return;
       }
 
@@ -506,6 +520,36 @@ export default function HomeScreen() {
       return undefined;
     }, [refreshHomeData])
   );
+
+  useEffect(() => {
+    if (!dashboardReady || !portalLinkedUserId) {
+      return;
+    }
+
+    const rank = getRankStage(performance.averageScore);
+
+    void Promise.allSettled([
+      trackActivity(portalLinkedUserId, {
+        type: 'rank_unlocked',
+        projectName: 'Bank & SSC',
+        rankKey: rank.key,
+        rankLabel: rank.label,
+        averageScore: performance.averageScore,
+      }),
+      trackActivity(portalLinkedUserId, {
+        type: 'card_collected',
+        projectName: 'Bank & SSC',
+        cardKey: rank.key,
+        cardLabel: rank.label,
+      }),
+    ]).then((results) => {
+      results.forEach((result) => {
+        if (result.status === 'rejected') {
+          console.error('Failed to sync progress activity', result.reason);
+        }
+      });
+    });
+  }, [dashboardReady, performance.averageScore, portalLinkedUserId]);
 
   const handleNavChange = (key: NavKey) => {
     setActiveNav(key);

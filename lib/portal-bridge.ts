@@ -9,7 +9,9 @@ type PortalReportInput = {
 };
 
 type MockCompletionInput = {
+  type: 'mock_test_completed';
   projectName: string;
+  attemptId: string;
   testId: string;
   testTitle: string;
   scoreTotal: number;
@@ -17,6 +19,33 @@ type MockCompletionInput = {
   totalQuestions: number;
   timeSpentSeconds: number;
 };
+
+type ProjectLoginInput = {
+  type: 'project_login';
+  projectName: string;
+  message?: string;
+};
+
+type RankUnlockedInput = {
+  type: 'rank_unlocked';
+  projectName: string;
+  rankKey: string;
+  rankLabel: string;
+  averageScore: number;
+};
+
+type CardCollectedInput = {
+  type: 'card_collected';
+  projectName: string;
+  cardKey: string;
+  cardLabel: string;
+};
+
+type PortalActivityInput =
+  | MockCompletionInput
+  | ProjectLoginInput
+  | RankUnlockedInput
+  | CardCollectedInput;
 
 async function getAccessToken() {
   if (!supabase) {
@@ -57,6 +86,6 @@ export async function submitPortalReport(input: PortalReportInput) {
   return postToPortal('/api/portal/report', input);
 }
 
-export async function trackActivity(_user: string, action: MockCompletionInput) {
+export async function trackActivity(_user: string, action: PortalActivityInput) {
   return postToPortal('/api/portal/activity', action);
 }
