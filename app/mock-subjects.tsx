@@ -117,8 +117,6 @@ export default function MockSubjectsPage() {
           <Image source={testHeroSource} style={styles.heroImage} resizeMode="contain" />
 
           {!sessionUserId ? <Text style={styles.guestNote}>Browsing as guest. Sign in only when you want to save progress.</Text> : null}
-          {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
-
           {!loading && exams.length === 0 ? <Text style={styles.empty}>No live exams found yet.</Text> : null}
 
           <View style={styles.grid}>

@@ -51,6 +51,110 @@ function formatSubmitError(error: unknown) {
   return 'We could not save your test result. Please try again.';
 }
 
+type AttemptScoreRow = {
+  subject: string;
+  correct: number;
+  attempted: number;
+  total: number;
+  score: number;
+};
+
+type CommonAttemptPayload = {
+  answers: Record<string, OptionKey>;
+  covered: Record<string, true>;
+  saved_for_review: Record<string, true>;
+  section_seconds_left: Record<string, number>;
+  time_spent_seconds: number;
+  score_total: number;
+  attempted_total: number;
+  total_questions: number;
+  subject_scores: AttemptScoreRow[];
+};
+
+async function syncAttemptToRemote({
+  testId,
+  sessionUserId,
+  payload,
+  commonAttemptPayload,
+}: {
+  testId: string;
+  sessionUserId: string;
+  payload: LiveMockPayload | null;
+  commonAttemptPayload: CommonAttemptPayload;
+}) {
+  if (!supabase) {
+    throw new Error('Supabase client is unavailable. Please try again.');
+  }
+
+  const attemptPayload = {
+    test_id: testId,
+    user_id: sessionUserId,
+    ...commonAttemptPayload,
+  };
+
+  const { data: attemptInsert, error: attemptError } = await withTimeout(
+    supabase
+      .from('mock_test_attempts')
+      .insert(attemptPayload)
+      .select('id')
+      .single(),
+    SUBMIT_TIMEOUT_MS,
+    'Test submission'
+  );
+
+  if (attemptError) {
+    throw attemptError;
+  }
+
+  try {
+    const profile = await getCachedUserProfile(sessionUserId);
+
+    const { error: leaderboardError } = await withTimeout(
+      supabase.from('mock_test_leaderboard').upsert(
+        {
+          test_id: testId,
+          user_id: sessionUserId,
+          user_name: String(profile.username ?? profile.displayName ?? sessionUserId.slice(0, 8)),
+          avatar_url: profile.avatarUrl ?? null,
+          score: commonAttemptPayload.score_total,
+        },
+        { onConflict: 'test_id,user_id' }
+      ),
+      SUBMIT_TIMEOUT_MS,
+      'Leaderboard update'
+    );
+
+    if (leaderboardError) {
+      console.error('Failed to upsert mock_test_leaderboard', leaderboardError);
+    }
+  } catch (leaderboardError) {
+    console.error('Failed to finalize leaderboard update', leaderboardError);
+  }
+
+  try {
+    await trackActivity(sessionUserId, {
+      type: 'mock_test_completed',
+      projectName: 'Bank & SSC',
+      attemptId: String(attemptInsert?.id ?? ''),
+      testId,
+      testTitle: String(payload?.title ?? testId),
+      scoreTotal: commonAttemptPayload.score_total,
+      attemptedTotal: commonAttemptPayload.attempted_total,
+      totalQuestions: commonAttemptPayload.total_questions,
+      timeSpentSeconds: commonAttemptPayload.time_spent_seconds,
+    });
+  } catch (syncError) {
+    console.error('Failed to sync Website A activity', syncError);
+  }
+
+  invalidateUserDashboardCache(sessionUserId);
+  invalidateHistoryCache(sessionUserId);
+  invalidateLeaderboardCache();
+  invalidateMockTestsCache(testId);
+
+  return String(attemptInsert?.id ?? '');
+}
+
 function InlineImage({ uri, style }: { uri?: string | null; style: object }) {
   if (!uri) return null;
   return <Image source={{ uri }} style={style} resizeMode="contain" />;
@@ -360,7 +464,7 @@ export default function MockTestDetailPage() {
   const goToReview = async () => {
     const scores = computeScores();
     const timeSpentSeconds = getAttemptTimeSpentSeconds();
-    const commonAttemptPayload = {
+    const commonAttemptPayload: CommonAttemptPayload = {
       answers,
       covered,
       saved_for_review: savedForReview,
@@ -372,94 +476,11 @@ export default function MockTestDetailPage() {
       subject_scores: scores.bySubject,
     };
 
-    if (!sessionUserId) {
-      const localAttempt = await saveLocalMockAttempt({
-        testId: String(testid),
-        ...commonAttemptPayload,
-      });
-      await clearPausedMockAttempt();
-      allowLeaveRef.current = true;
-      setAllowLeave(true);
-      setShowSubmitFlow(false);
-      router.replace({
-        pathname: '/mock-test/[testid]/review',
-        params: {
-          testid: String(testid),
-          localAttemptId: localAttempt.id,
-        },
-      });
-      return;
-    }
-
-    const attemptPayload = {
-      test_id: String(testid),
-      user_id: sessionUserId,
+    const testId = String(testid);
+    const localAttempt = await saveLocalMockAttempt({
+      testId,
       ...commonAttemptPayload,
-    };
-
-    if (!supabase) {
-      throw new Error('Supabase client is unavailable. Please try again.');
-    }
-
-    const { data: attemptInsert, error: attemptError } = await withTimeout(
-      supabase
-        .from('mock_test_attempts')
-        .insert(attemptPayload)
-        .select('id')
-        .single(),
-      SUBMIT_TIMEOUT_MS,
-      'Test submission'
-    );
-
-    if (attemptError) {
-      throw attemptError;
-    }
-
-    try {
-      const profile = await getCachedUserProfile(sessionUserId);
-
-      const { error: leaderboardError } = await withTimeout(
-        supabase.from('mock_test_leaderboard').upsert(
-          {
-            test_id: String(testid),
-            user_id: sessionUserId,
-            user_name: String(profile.username ?? profile.displayName ?? sessionUserId.slice(0, 8)),
-            avatar_url: profile.avatarUrl ?? null,
-            score: scores.totalScore,
-          },
-          { onConflict: 'test_id,user_id' }
-        ),
-        SUBMIT_TIMEOUT_MS,
-        'Leaderboard update'
-      );
-
-      if (leaderboardError) {
-        console.error('Failed to upsert mock_test_leaderboard', leaderboardError);
-      }
-    } catch (leaderboardError) {
-      console.error('Failed to finalize leaderboard update', leaderboardError);
-    }
-
-    try {
-      await trackActivity(sessionUserId, {
-        type: 'mock_test_completed',
-        projectName: 'Bank & SSC',
-        attemptId: String(attemptInsert?.id ?? ''),
-        testId: String(testid),
-        testTitle: String(payload?.title ?? testid),
-        scoreTotal: scores.totalScore,
-        attemptedTotal: scores.totalAttempted,
-        totalQuestions: scores.total,
-        timeSpentSeconds,
-      });
-    } catch (syncError) {
-      console.error('Failed to sync Website A activity', syncError);
-    }
-
-    invalidateUserDashboardCache(sessionUserId);
-    invalidateHistoryCache(sessionUserId);
-    invalidateLeaderboardCache();
-    invalidateMockTestsCache(String(testid));
+    });
     await clearPausedMockAttempt();
     allowLeaveRef.current = true;
     setAllowLeave(true);
@@ -467,9 +488,22 @@ export default function MockTestDetailPage() {
     router.replace({
       pathname: '/mock-test/[testid]/review',
       params: {
-        testid: String(testid),
-        attemptId: String(attemptInsert?.id ?? ''),
+        testid: testId,
+        localAttemptId: localAttempt.id,
       },
+    });
+
+    if (!sessionUserId) {
+      return;
+    }
+
+    void syncAttemptToRemote({
+      testId,
+      sessionUserId,
+      payload,
+      commonAttemptPayload,
+    }).catch((error) => {
+      console.error('Failed to save remote mock test history', error);
     });
   };
 
