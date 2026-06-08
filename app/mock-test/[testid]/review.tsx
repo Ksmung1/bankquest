@@ -16,6 +16,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { flattenSectionQuestions, getImageUrl, normalizeSubject, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
 import { getCachedMockTestById, getCachedSession } from '@/lib/app-data-cache';
+import { getLocalMockAttemptById } from '@/lib/local-mock-data';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
 // ─────────────────────────────────────────────────────────
@@ -211,80 +212,99 @@ export default function MockTestReviewPage() {
   // ── Load data ──────────────────────────────────────────
   const load = async () => {
     const testId = String(params.testid);
-    if (!supabase || !hasSupabaseConfig) {
-      router.replace('/auth');
-      return;
-    }
-
-    const [session, cachedPayload, lbRes, attemptRes, reviewsRes] = await Promise.all([
+    const [session, cachedPayload] = await Promise.all([
       getCachedSession(),
       getCachedMockTestById(testId),
-      supabase.from('mock_test_leaderboard')
-        .select('id,user_name,score,rank,test_id,avatar_url')
-        .eq('test_id', testId)
-        .order('rank', { ascending: true })
-        .limit(50),
-      params.attemptId
-        ? supabase.from('mock_test_attempts')
-            .select('score_total,attempted_total,total_questions,answers,subject_scores')
-            .eq('id', params.attemptId)
-            .single()
-        : Promise.resolve({ data: null, error: null }),
-      supabase.from('mock_test_reviews')
-        .select('id,user_id,rating,review_text,recommended,created_at')
-        .eq('test_id', testId)
-        .order('created_at', { ascending: false })
-        .limit(50),
     ]);
 
     const uid = session?.user?.id ?? null;
-    if (!uid) {
-      router.replace('/auth');
-      return;
-    }
     setSessionUserId(uid);
 
     if (!payload && cachedPayload) setPayload(cachedPayload as LiveMockPayload);
 
-    if (!lbRes.error && lbRes.data) {
-      setLeaderboard(lbRes.data.map((row) => ({
-        id: String(row.id),
-        user_name: String(row.user_name ?? 'User'),
-        score: Number(row.score ?? 0),
-        rank: Number(row.rank ?? 0),
-        avatar_url: (row.avatar_url as string | null) ?? null,
-      })));
+    if (params.localAttemptId) {
+      const localAttempt = await getLocalMockAttemptById(String(params.localAttemptId));
+      setIsLocalAttempt(true);
+      setAttempt(localAttempt ? {
+        score_total: Number(localAttempt.score_total ?? 0),
+        attempted_total: Number(localAttempt.attempted_total ?? 0),
+        total_questions: Number(localAttempt.total_questions ?? 0),
+        answers: (localAttempt.answers ?? {}) as Record<string, string>,
+        subject_scores: (localAttempt.subject_scores ?? []) as AttemptData['subject_scores'],
+      } : null);
+    } else {
+      setIsLocalAttempt(false);
+      setAttempt(null);
     }
 
-    if (!attemptRes.error && attemptRes.data) {
-      setAttempt({
-        score_total: Number(attemptRes.data.score_total ?? 0),
-        attempted_total: Number(attemptRes.data.attempted_total ?? 0),
-        total_questions: Number(attemptRes.data.total_questions ?? 0),
-        answers: (attemptRes.data.answers ?? {}) as Record<string, string>,
-        subject_scores: (attemptRes.data.subject_scores ?? []) as AttemptData['subject_scores'],
-      });
-    }
+    if (supabase && hasSupabaseConfig) {
+      const [lbRes, attemptRes, reviewsRes] = await Promise.all([
+        supabase.from('mock_test_leaderboard')
+          .select('id,user_name,score,rank,test_id,avatar_url')
+          .eq('test_id', testId)
+          .order('rank', { ascending: true })
+          .limit(50),
+        params.attemptId
+          ? supabase.from('mock_test_attempts')
+              .select('score_total,attempted_total,total_questions,answers,subject_scores')
+              .eq('id', params.attemptId)
+              .single()
+          : Promise.resolve({ data: null, error: null }),
+        supabase.from('mock_test_reviews')
+          .select('id,user_id,rating,review_text,recommended,created_at')
+          .eq('test_id', testId)
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ]);
 
-    if (!reviewsRes.error && reviewsRes.data) {
-      const mapped = reviewsRes.data.map((r) => ({
-        id: String(r.id),
-        user_id: String(r.user_id),
-        rating: Number(r.rating ?? 5),
-        review_text: (r.review_text as string | null) ?? null,
-        recommended: Boolean(r.recommended),
-        created_at: String(r.created_at),
-      }));
-      setReviews(mapped);
-      if (uid) {
-        const mine = mapped.find((r) => r.user_id === uid);
-        if (mine) {
-          setMyRating(mine.rating);
-          setMyReviewText(mine.review_text ?? '');
-          setMyRecommended(mine.recommended);
-        }
+      if (!lbRes.error && lbRes.data) {
+        setLeaderboard(lbRes.data.map((row) => ({
+          id: String(row.id),
+          user_name: String(row.user_name ?? 'User'),
+          score: Number(row.score ?? 0),
+          rank: Number(row.rank ?? 0),
+          avatar_url: (row.avatar_url as string | null) ?? null,
+        })));
+      } else {
+        setLeaderboard([]);
       }
+
+      if (!params.localAttemptId && !attemptRes.error && attemptRes.data) {
+        setAttempt({
+          score_total: Number(attemptRes.data.score_total ?? 0),
+          attempted_total: Number(attemptRes.data.attempted_total ?? 0),
+          total_questions: Number(attemptRes.data.total_questions ?? 0),
+          answers: (attemptRes.data.answers ?? {}) as Record<string, string>,
+          subject_scores: (attemptRes.data.subject_scores ?? []) as AttemptData['subject_scores'],
+        });
+      }
+
+      if (!reviewsRes.error && reviewsRes.data) {
+        const mapped = reviewsRes.data.map((r) => ({
+          id: String(r.id),
+          user_id: String(r.user_id),
+          rating: Number(r.rating ?? 5),
+          review_text: (r.review_text as string | null) ?? null,
+          recommended: Boolean(r.recommended),
+          created_at: String(r.created_at),
+        }));
+        setReviews(mapped);
+        if (uid) {
+          const mine = mapped.find((r) => r.user_id === uid);
+          if (mine) {
+            setMyRating(mine.rating);
+            setMyReviewText(mine.review_text ?? '');
+            setMyRecommended(mine.recommended);
+          }
+        }
+      } else {
+        setReviews([]);
+      }
+      return;
     }
+
+    setLeaderboard([]);
+    setReviews([]);
   };
 
   useEffect(() => { load(); }, [params.testid, params.attemptId, params.localAttemptId]);

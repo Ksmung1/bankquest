@@ -9,6 +9,7 @@ import {
   getCachedHistoryRows,
   getCachedMockTests,
   getCachedSession,
+  peekCachedSession,
   peekCachedHistoryRows,
   peekCachedMockTests,
 } from '@/lib/app-data-cache';
@@ -100,45 +101,27 @@ export default function HistoryPage() {
   const isMobile = width < 700;
   const pageScale = isMobile ? 0.6 : 0.8;
 
-  const [rows, setRows] = useState<HistoryRow[]>(() => peekCachedHistoryRows('') ?? []);
-  const [loading, setLoading] = useState(true);
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const [rows, setRows] = useState<HistoryRow[]>(() => {
+    const cachedSession = peekCachedSession();
+    const cachedUserId = cachedSession?.user?.id ?? null;
+    return cachedUserId ? peekCachedHistoryRows(cachedUserId) ?? [] : [];
+  });
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(() => peekCachedSession()?.user?.id ?? null);
   const [searchQuery, setSearchQuery] = useState('');
   const [examFilter, setExamFilter] = useState<'All Exams' | string>('All Exams');
   const [statusFilter, setStatusFilter] = useState<'All Status' | 'Completed' | 'Incomplete'>('All Status');
   const [sortBy, setSortBy] = useState<'Latest' | 'Highest Score' | 'Lowest Score'>('Latest');
   const [mockMetaById, setMockMetaById] = useState<Record<string, { totalMinutes: number; sections: number }>>({});
 
-  const loadHistory = useCallback(async () => {
+  const loadMockMeta = useCallback(async () => {
     try {
       if (!supabase || !hasSupabaseConfig) {
-        setSessionUserId(null);
-        setRows([]);
-        setLoading(false);
-        router.replace('/auth');
         return;
       }
 
-      const session = await getCachedSession();
-      const userId = session?.user?.id ?? null;
-      if (!userId) {
-        setSessionUserId(null);
-        setRows([]);
-        setLoading(false);
-        router.replace('/auth');
-        return;
-      }
-
-      const cachedRows = peekCachedHistoryRows(userId);
       const cachedMocks = peekCachedMockTests();
-      setSessionUserId(userId);
-
-      if (cachedRows) {
-        setRows(cachedRows);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
 
       if (cachedMocks) {
         const nextMeta = Object.fromEntries(
@@ -153,12 +136,7 @@ export default function HistoryPage() {
         setMockMetaById(nextMeta);
       }
 
-      const [mappedRows, mockTests] = await Promise.all([
-        getCachedHistoryRows(userId),
-        getCachedMockTests(),
-      ]);
-
-      setRows(mappedRows);
+      const mockTests = await getCachedMockTests();
       setMockMetaById(
         Object.fromEntries(
           mockTests.map((mock) => [
@@ -171,41 +149,98 @@ export default function HistoryPage() {
         )
       );
     } catch (error) {
-      console.error('Failed to load history page', error);
+      console.error('Failed to load history metadata', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadMockMeta();
+  }, [loadMockMeta]);
+
+  const loadHistoryForUser = useCallback(async (userId: string | null) => {
+    if (!userId || !supabase || !hasSupabaseConfig) {
       setRows([]);
+      setLoadError(null);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoadError(null);
+      const cachedRows = peekCachedHistoryRows(userId);
+      if (cachedRows) {
+        setRows(cachedRows);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
+      const mappedRows = await getCachedHistoryRows(userId);
+      setRows(mappedRows);
+    } catch (error) {
+      console.error('Failed to load history rows for user', error);
+      setRows([]);
+      setLoadError(error instanceof Error ? error.message : 'Failed to load history.');
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, []);
 
   useEffect(() => {
-    void loadHistory();
-  }, [loadHistory]);
+    let mounted = true;
+
+    async function resolveSession() {
+      try {
+        const session = await getCachedSession();
+        if (!mounted) return;
+        const userId = session?.user?.id ?? null;
+        setSessionUserId(userId);
+        void loadHistoryForUser(userId);
+      } catch (error) {
+        console.error('Failed to resolve history session', error);
+        if (!mounted) return;
+        setSessionUserId(null);
+        setRows([]);
+        setLoadError(error instanceof Error ? error.message : 'Failed to resolve session.');
+        setLoading(false);
+      }
+    }
+
+    void resolveSession();
+    return () => {
+      mounted = false;
+    };
+  }, [loadHistoryForUser]);
 
   useFocusEffect(
     useCallback(() => {
-      void loadHistory();
+      if (sessionUserId) {
+        void loadHistoryForUser(sessionUserId);
+      }
       return undefined;
-    }, [loadHistory])
+    }, [loadHistoryForUser, sessionUserId])
   );
 
   useEffect(() => {
     if (!supabase) {
       setSessionUserId(null);
-      router.replace('/auth');
       return;
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       cacheSession(session);
-      setSessionUserId(session?.user?.id ?? null);
-      if (!session?.user?.id && event === 'SIGNED_OUT') {
-        router.replace('/auth');
+      const userId = session?.user?.id ?? null;
+      setSessionUserId(userId);
+      if (!userId && event === 'SIGNED_OUT') {
+        setRows([]);
+        setLoading(false);
+        return;
       }
+      void loadHistoryForUser(userId);
     });
 
     return () => data.subscription.unsubscribe();
-  }, [router]);
+  }, [loadHistoryForUser]);
 
   const examOptions = useMemo(() => ['All Exams', ...Array.from(new Set(rows.map((row) => row.exam)))], [rows]);
 
@@ -270,10 +305,10 @@ export default function HistoryPage() {
 
   return (
     <AppChrome active="history">
-      {loading || !sessionUserId ? (
+      {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.empty}>{loading ? 'Loading history...' : 'Redirecting to login...'}</Text>
+          <Text style={styles.empty}>Loading history...</Text>
         </View>
       ) : (
       <ScrollView contentContainerStyle={styles.container}>
@@ -387,6 +422,9 @@ export default function HistoryPage() {
             <MaterialCommunityIcons name="chevron-down" size={18} color="#64739D" />
           </Pressable>
         </View>
+
+        {!sessionUserId ? <Text style={styles.empty}>Sign in to see your test history. This page still loads instantly without an account.</Text> : null}
+        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
 
         {filteredRows.length === 0 ? <Text style={styles.empty}>No test history found for the current filters.</Text> : null}
 
@@ -795,5 +833,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#64748B',
     fontWeight: '600',
+  },
+  errorText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#DC2626',
+    fontWeight: '700',
   },
 });

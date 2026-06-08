@@ -15,11 +15,15 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
+const GUEST_ACCESSIBLE_PATHS = new Set(['/mock-subjects', '/history', '/profile']);
+
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const pathname = usePathname();
   const router = useRouter();
   const params = useGlobalSearchParams();
+  const inSSOCallback = isSSOCallbackPath(pathname, params);
+  const isGuestAccessible = GUEST_ACCESSIBLE_PATHS.has(pathname);
   const [accessReady, setAccessReady] = useState(!hasSupabaseConfig);
   const [hasPortalAccess, setHasPortalAccess] = useState(!hasSupabaseConfig);
 
@@ -77,23 +81,21 @@ export default function RootLayout() {
       return;
     }
 
-    const inSSOCallback = isSSOCallbackPath(pathname, params);
-
     if (hasPortalAccess && pathname === '/auth' && !inSSOCallback) {
       router.replace('/' as never);
       return;
     }
 
-    if (!hasPortalAccess && pathname !== '/auth' && !inSSOCallback) {
+    if (!hasPortalAccess && pathname !== '/auth' && !inSSOCallback && !isGuestAccessible) {
       router.replace('/auth' as never);
     }
-  }, [accessReady, hasPortalAccess, params, pathname, router]);
+  }, [accessReady, hasPortalAccess, inSSOCallback, isGuestAccessible, pathname, router]);
 
-  if (!accessReady) {
+  if (!accessReady && !isGuestAccessible && !inSSOCallback) {
     return null;
   }
 
-  if (!hasPortalAccess && pathname !== '/auth' && !isSSOCallbackPath(pathname, params)) {
+  if (!hasPortalAccess && pathname !== '/auth' && !isGuestAccessible && !inSSOCallback) {
     return null;
   }
 

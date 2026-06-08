@@ -47,6 +47,14 @@ const defaultPerformance: PerformanceData = {
 const heroIllustration = require('@/assets/images/history-hero.png');
 const securityIllustration = require('@/assets/images/legend.png');
 const scaleValue = (value: number, factor: number) => Math.round(value * factor);
+const guestProfile: ProfileData = {
+  userId: 'guest',
+  email: null,
+  username: 'guest',
+  displayName: 'Guest User',
+  avatarUrl: null,
+  phoneNumber: null,
+};
 
 function formatDuration(totalSeconds: number) {
   const seconds = Math.max(0, Math.round(totalSeconds));
@@ -97,7 +105,7 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const webInputReset = Platform.OS === 'web' ? ({ outlineWidth: 0, outlineStyle: 'none', boxShadow: 'none' } as const) : null;
 
   const loadProfileRow = async (sessionUserId: string, fallbackAvatar: string | null, fallbackUsername?: string | null, fallbackEmail?: string | null) => {
@@ -165,8 +173,12 @@ export default function ProfilePage() {
     async function init() {
       try {
         if (!supabase || !hasSupabaseConfig) {
+          setProfile(guestProfile);
+          setPerformance(defaultPerformance);
+          setLeaderboard([]);
+          setUserRankLabel('Unranked');
+          setUserRankScore(0);
           setCheckingAuth(false);
-          router.replace('/auth');
           return;
         }
 
@@ -174,9 +186,12 @@ export default function ProfilePage() {
         initialResolved = true;
 
         if (!session?.user?.id) {
-          setProfile(null);
+          setProfile(guestProfile);
+          setPerformance(defaultPerformance);
+          setLeaderboard([]);
+          setUserRankLabel('Unranked');
+          setUserRankScore(0);
           setCheckingAuth(false);
-          router.replace('/auth');
           return;
         }
 
@@ -207,8 +222,11 @@ export default function ProfilePage() {
       if (!session?.user?.id) {
         if (event === 'SIGNED_OUT') {
           clearAppDataCache();
-          setProfile(null);
-          router.replace('/auth');
+          setProfile(guestProfile);
+          setPerformance(defaultPerformance);
+          setLeaderboard([]);
+          setUserRankLabel('Unranked');
+          setUserRankScore(0);
         }
         return;
       }
@@ -225,8 +243,12 @@ export default function ProfilePage() {
     return () => data.subscription.unsubscribe();
   }, [router]);
 
-  const avatarPreview = editing ? draftAvatarUrl.trim() || profile?.avatarUrl || null : profile?.avatarUrl || null;
-  const accountHandle = useMemo(() => `@${editing ? draftUsername || profile?.username || 'user' : profile?.username || 'user'}`, [draftUsername, editing, profile?.username]);
+  const activeProfile = profile ?? guestProfile;
+  const avatarPreview = editing ? draftAvatarUrl.trim() || activeProfile.avatarUrl || null : activeProfile.avatarUrl || null;
+  const accountHandle = useMemo(
+    () => `@${editing ? draftUsername || activeProfile.username || 'user' : activeProfile.username || 'user'}`,
+    [activeProfile.username, draftUsername, editing]
+  );
 
   const startEditing = () => {
     if (!profile) return;
@@ -394,22 +416,8 @@ export default function ProfilePage() {
     );
   }
 
-  if (!profile) {
-    return (
-      <AppChrome active="profile">
-        <View style={styles.centerState}>
-          <MaterialCommunityIcons name="account-off-outline" size={40} color="#94A3B8" />
-          <Text style={styles.stateTitle}>Profile unavailable</Text>
-          <Text style={styles.stateText}>Please sign in again to access your account settings.</Text>
-          <Pressable onPress={() => router.replace('/auth')} style={({ pressed }) => [styles.editProfileButton, pressed && styles.pressed]}>
-            <Text style={styles.editProfileButtonText}>Go to Sign In</Text>
-          </Pressable>
-        </View>
-      </AppChrome>
-    );
-  }
-
-  const displayName = profile.displayName || profile.username;
+  const displayName = activeProfile.displayName || activeProfile.username;
+  const isGuest = activeProfile.userId === 'guest';
 
   return (
     <AppChrome active="profile">
@@ -446,10 +454,10 @@ export default function ProfilePage() {
                 <Text style={[styles.welcomeText, { fontSize: scaleValue(19, pageScale), marginTop: scaleValue(8, pageScale) }]}>Welcome back,</Text>
                 <Text style={[styles.heroName, { fontSize: scaleValue(isMobile ? 48 : 52, pageScale), lineHeight: scaleValue(isMobile ? 50 : 54, pageScale), marginTop: scaleValue(8, pageScale) }]}>{displayName}</Text>
                 <Text style={[styles.usernameText, { fontSize: scaleValue(18, pageScale), marginBottom: scaleValue(10, pageScale) }]}>{accountHandle}</Text>
-                <Text style={[styles.emailText, { fontSize: scaleValue(15, pageScale), marginBottom: scaleValue(22, pageScale) }]}>{profile.email || 'No email available'}</Text>
+                <Text style={[styles.emailText, { fontSize: scaleValue(15, pageScale), marginBottom: scaleValue(22, pageScale) }]}>{activeProfile.email || 'No email available'}</Text>
 
                 <View style={[styles.heroActions, { gap: scaleValue(12, pageScale) }]}>
-                  {editing ? (
+                  {editing && !isGuest ? (
                     <>
                       <Pressable onPress={cancelEditing} style={({ pressed }) => [styles.cancelButton, { paddingVertical: scaleValue(16, pageScale), paddingHorizontal: scaleValue(22, pageScale), borderRadius: scaleValue(18, pageScale), borderWidth: Math.max(1, scaleValue(2, pageScale)) }, pressed && styles.pressed]}>
                         <Text style={[styles.cancelButtonText, { fontSize: scaleValue(15, pageScale) }]}>Cancel</Text>
@@ -458,6 +466,11 @@ export default function ProfilePage() {
                         {saving ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Text style={[styles.editProfileButtonText, { fontSize: scaleValue(15, pageScale) }]}>Save Profile</Text>}
                       </Pressable>
                     </>
+                  ) : isGuest ? (
+                    <Pressable onPress={() => router.replace('/auth')} style={({ pressed }) => [styles.editProfileButton, { paddingVertical: scaleValue(16, pageScale), paddingHorizontal: scaleValue(26, pageScale), borderRadius: scaleValue(18, pageScale), gap: scaleValue(8, pageScale) }, pressed && styles.pressed]}>
+                      <MaterialCommunityIcons name="login" size={scaleValue(16, pageScale)} color="#FFFFFF" />
+                      <Text style={[styles.editProfileButtonText, { fontSize: scaleValue(15, pageScale) }]}>Sign In</Text>
+                    </Pressable>
                   ) : (
                     <Pressable onPress={startEditing} style={({ pressed }) => [styles.editProfileButton, { paddingVertical: scaleValue(16, pageScale), paddingHorizontal: scaleValue(26, pageScale), borderRadius: scaleValue(18, pageScale), gap: scaleValue(8, pageScale) }, pressed && styles.pressed]}>
                       <MaterialCommunityIcons name="pencil-outline" size={scaleValue(16, pageScale)} color="#FFFFFF" />
@@ -582,6 +595,22 @@ export default function ProfilePage() {
             </>
           ) : (
             <>
+              {isGuest ? (
+                <View style={[styles.rankSummaryBox, { padding: scaleValue(24, pageScale), borderRadius: scaleValue(28, pageScale), marginBottom: scaleValue(18, pageScale), gap: scaleValue(20, pageScale) }]}>
+                  <View style={[styles.detailLeft, { gap: scaleValue(18, pageScale) }]}>
+                    <View style={[styles.detailIcon, styles.purpleDetail, { width: scaleValue(74, pageScale), height: scaleValue(74, pageScale), borderRadius: scaleValue(22, pageScale) }]}>
+                      <MaterialCommunityIcons name="account-clock-outline" size={scaleValue(32, pageScale)} color="#9657FF" />
+                    </View>
+
+                    <View style={styles.detailContent}>
+                      <Text style={[styles.detailLabel, { fontSize: scaleValue(13, pageScale), marginBottom: scaleValue(8, pageScale) }]}>GUEST MODE</Text>
+                      <Text style={[styles.detailTitle, { fontSize: scaleValue(28, pageScale), lineHeight: scaleValue(30, pageScale), marginBottom: scaleValue(8, pageScale) }]}>Instant profile preview</Text>
+                      <Text style={[styles.detailText, { fontSize: scaleValue(15, pageScale), lineHeight: scaleValue(22, pageScale) }]}>Sign in to sync your stats, rank, avatar, and saved progress.</Text>
+                    </View>
+                  </View>
+                </View>
+              ) : null}
+
               <View style={[styles.rankSummaryBox, { padding: scaleValue(24, pageScale), borderRadius: scaleValue(28, pageScale), marginBottom: scaleValue(18, pageScale), gap: scaleValue(20, pageScale) }]}>
                 <View style={[styles.detailLeft, { gap: scaleValue(18, pageScale) }]}>
                   <View style={[styles.detailIcon, styles.purpleDetail, { width: scaleValue(74, pageScale), height: scaleValue(74, pageScale), borderRadius: scaleValue(22, pageScale) }]}>

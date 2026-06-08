@@ -3,9 +3,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AppChrome } from '@/components/app-chrome';
-import { type LiveMockListItem } from '@/constants/mock-live-types';
-import { cacheSession, getCachedMockTests, getCachedSession, peekCachedMockTests } from '@/lib/app-data-cache';
-import { clearLocalMockTests } from '@/lib/local-mock-data';
+import { cacheSession, getCachedMockExamList, getCachedSession, peekCachedMockExamList, type LiveMockExamSummary } from '@/lib/app-data-cache';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
 const examImages = {
@@ -17,6 +15,7 @@ const examImages = {
 } as const;
 
 const testHeroSource = require('@/assets/images/test-hero.png');
+const TEST_HERO_ASPECT_RATIO = 16 / 9;
 
 function getExamImageSource(exam: string) {
   const normalizedExam = exam.trim().toLowerCase();
@@ -30,40 +29,32 @@ function getExamImageSource(exam: string) {
 
 export default function MockSubjectsPage() {
   const router = useRouter();
-  const [tests, setTests] = useState<LiveMockListItem[]>(() => peekCachedMockTests() ?? []);
-  const [loading, setLoading] = useState(() => peekCachedMockTests() === null);
+  const [tests, setTests] = useState<LiveMockExamSummary[]>(() => peekCachedMockExamList() ?? []);
+  const [loading, setLoading] = useState(() => peekCachedMockExamList() === null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sessionUserId, setSessionUserId] = useState<string | null>(null);
 
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
+    async function loadTests() {
       try {
         if (!supabase || !hasSupabaseConfig) {
           if (!mounted) return;
-          setSessionUserId(null);
+          setTests([]);
+          setLoadError(null);
           setLoading(false);
-          router.replace('/auth');
           return;
         }
 
-        const session = await getCachedSession();
-        if (!mounted) return;
-        setSessionUserId(session?.user?.id ?? null);
-        if (!session?.user?.id) {
-          setLoading(false);
-          router.replace('/auth');
-          return;
-        }
-
-        await clearLocalMockTests();
-        const mapped = await getCachedMockTests();
+        setLoadError(null);
+        const mapped = await getCachedMockExamList();
         if (!mounted) return;
         setTests(mapped ?? []);
       } catch (error) {
         console.error('Failed to load mock subjects', error);
         if (!mounted) return;
-        setTests([]);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load exams.');
       } finally {
         if (mounted) {
           setLoading(false);
@@ -71,42 +62,62 @@ export default function MockSubjectsPage() {
       }
     }
 
-    load();
+    loadTests();
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function resolveSession() {
+      try {
+        const session = await getCachedSession();
+        if (!mounted) return;
+        setSessionUserId(session?.user?.id ?? null);
+      } catch (error) {
+        console.error('Failed to resolve mock subjects session', error);
+        if (!mounted) return;
+        setSessionUserId(null);
+      }
+    }
+
+    void resolveSession();
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!supabase) {
       setSessionUserId(null);
-      router.replace('/auth');
       return;
     }
 
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       cacheSession(session);
       setSessionUserId(session?.user?.id ?? null);
-      if (!session?.user?.id && event === 'SIGNED_OUT') {
-        router.replace('/auth');
-      }
     });
 
     return () => data.subscription.unsubscribe();
-  }, [router]);
+  }, []);
 
   const exams = useMemo(() => Array.from(new Set(tests.map((test) => test.exam))), [tests]);
 
   return (
     <AppChrome active="tests">
-      {loading || !sessionUserId ? (
+      {loading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color="#2563EB" />
-          <Text style={styles.empty}>{loading ? 'Loading exams...' : 'Redirecting to login...'}</Text>
+          <Text style={styles.empty}>Loading exams...</Text>
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.container}>
           <Image source={testHeroSource} style={styles.heroImage} resizeMode="contain" />
+
+          {!sessionUserId ? <Text style={styles.guestNote}>Browsing as guest. Sign in only when you want to save progress.</Text> : null}
+          {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
 
           {!loading && exams.length === 0 ? <Text style={styles.empty}>No live exams found yet.</Text> : null}
 
@@ -145,7 +156,13 @@ export default function MockSubjectsPage() {
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 10, backgroundColor: '#EAF3FF', padding: 16 },
   container: { paddingHorizontal: 16, paddingTop: 0, paddingBottom: 28, gap: 16 },
-  heroImage: { width: '100%' },
+  heroImage: {
+    width: '100%',
+    aspectRatio: TEST_HERO_ASPECT_RATIO,
+    alignSelf: 'stretch',
+  },
+  guestNote: { fontSize: 13, color: '#2563EB', fontWeight: '700' },
+  errorText: { fontSize: 13, color: '#DC2626', fontWeight: '700' },
   empty: { fontSize: 13, color: '#64748B', fontWeight: '600' },
   grid: { gap: 12 },
   card: {

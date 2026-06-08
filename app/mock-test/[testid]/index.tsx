@@ -6,6 +6,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import { flattenSectionQuestions, getImageUrl, normalizeSubject, type FlattenedLiveQuestion, type LiveMockPayload } from '@/constants/mock-live-types';
 import { cacheSession, getCachedMockTestById, getCachedSession, getCachedUserProfile, invalidateHistoryCache, invalidateLeaderboardCache, invalidateMockTestsCache, invalidateUserDashboardCache } from '@/lib/app-data-cache';
+import { saveLocalMockAttempt } from '@/lib/local-mock-data';
 import { clearPausedMockAttempt, getPausedMockAttempt, setPausedMockAttempt } from '@/lib/mock-test-resume';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { trackActivity } from '@/lib/portal-bridge';
@@ -60,6 +61,7 @@ export default function MockTestDetailPage() {
   const navigation = useNavigation();
   const router = useRouter();
   const scrollRef = useRef<ScrollView | null>(null);
+  const allowLeaveRef = useRef(false);
 
   const [payload, setPayload] = useState<LiveMockPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,10 @@ export default function MockTestDetailPage() {
   const [sectionSecondsLeft, setSectionSecondsLeft] = useState<Record<string, number>>({});
   const [showSubmitFlow, setShowSubmitFlow] = useState(false);
   const [submitStage, setSubmitStage] = useState<SubmitStage>('confirm');
+
+  useEffect(() => {
+    allowLeaveRef.current = allowLeave;
+  }, [allowLeave]);
 
   const subjects = useMemo(() => {
     if (!payload) return [] as SubjectName[];
@@ -126,17 +132,9 @@ export default function MockTestDetailPage() {
 
       if (!supabase || !hasSupabaseConfig) {
         setSessionUserId(null);
-        setLoading(false);
-        router.replace('/auth');
-        return;
-      }
-
-      const session = await getCachedSession();
-      setSessionUserId(session?.user?.id ?? null);
-      if (!session?.user?.id) {
-        setLoading(false);
-        router.replace('/auth');
-        return;
+      } else {
+        const session = await getCachedSession();
+        setSessionUserId(session?.user?.id ?? null);
       }
 
       loadedPayload = await getCachedMockTestById(String(testid));
@@ -189,18 +187,14 @@ export default function MockTestDetailPage() {
   useEffect(() => {
     if (!supabase) {
       setSessionUserId(null);
-      router.replace('/auth');
       return;
     }
     const { data } = supabase.auth.onAuthStateChange((event, session) => {
       cacheSession(session);
       setSessionUserId(session?.user?.id ?? null);
-      if (!session?.user?.id && event === 'SIGNED_OUT') {
-        router.replace('/auth');
-      }
     });
     return () => data.subscription.unsubscribe();
-  }, [router]);
+  }, []);
 
   useEffect(() => {
     const activeTimerKey = hasSectionalTiming ? currentSubject : OVERALL_TIMER_KEY;
@@ -364,17 +358,9 @@ export default function MockTestDetailPage() {
   };
 
   const goToReview = async () => {
-    if (!sessionUserId) {
-      router.replace('/auth');
-      throw new Error('Your session expired. Please log in again.');
-    }
-
     const scores = computeScores();
     const timeSpentSeconds = getAttemptTimeSpentSeconds();
-
-    const attemptPayload = {
-      test_id: String(testid),
-      user_id: sessionUserId,
+    const commonAttemptPayload = {
       answers,
       covered,
       saved_for_review: savedForReview,
@@ -386,9 +372,33 @@ export default function MockTestDetailPage() {
       subject_scores: scores.bySubject,
     };
 
+    if (!sessionUserId) {
+      const localAttempt = await saveLocalMockAttempt({
+        testId: String(testid),
+        ...commonAttemptPayload,
+      });
+      await clearPausedMockAttempt();
+      allowLeaveRef.current = true;
+      setAllowLeave(true);
+      setShowSubmitFlow(false);
+      router.replace({
+        pathname: '/mock-test/[testid]/review',
+        params: {
+          testid: String(testid),
+          localAttemptId: localAttempt.id,
+        },
+      });
+      return;
+    }
+
+    const attemptPayload = {
+      test_id: String(testid),
+      user_id: sessionUserId,
+      ...commonAttemptPayload,
+    };
+
     if (!supabase) {
-      router.replace('/auth');
-      throw new Error('Supabase client is unavailable. Please log in again.');
+      throw new Error('Supabase client is unavailable. Please try again.');
     }
 
     const { data: attemptInsert, error: attemptError } = await withTimeout(
@@ -451,6 +461,7 @@ export default function MockTestDetailPage() {
     invalidateLeaderboardCache();
     invalidateMockTestsCache(String(testid));
     await clearPausedMockAttempt();
+    allowLeaveRef.current = true;
     setAllowLeave(true);
     setShowSubmitFlow(false);
     router.replace({
@@ -468,6 +479,19 @@ export default function MockTestDetailPage() {
     setSubmitStage('confirm');
   };
 
+  useEffect(() => {
+    if (!hasSectionalTiming || typeof window === 'undefined') return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Tab' || showSubmitFlow) return;
+      event.preventDefault();
+      setShowPalette(true);
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [hasSectionalTiming, showSubmitFlow]);
+
   const confirmAndSubmit = async () => {
     if (submitStage === 'submitting') return;
     setSubmitStage('submitting');
@@ -483,12 +507,12 @@ export default function MockTestDetailPage() {
 
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (e) => {
-      if (allowLeave) return;
+      if (allowLeaveRef.current) return;
       e.preventDefault();
       startSubmitFlow();
     });
     return unsub;
-  }, [allowLeave, navigation]);
+  }, [navigation]);
 
   useEffect(() => {
     if (!payload || !testid) return;
@@ -508,10 +532,6 @@ export default function MockTestDetailPage() {
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /><Text style={styles.centerText}>Loading test...</Text></View>;
-  }
-
-  if (!sessionUserId) {
-    return <View style={styles.center}><ActivityIndicator size="large" color="#2563EB" /><Text style={styles.centerText}>Redirecting to login...</Text></View>;
   }
 
   if (!payload || !currentQuestion) {
@@ -619,6 +639,9 @@ export default function MockTestDetailPage() {
         <View style={styles.modalBackdrop}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}><Text style={styles.modalTitle}>{currentSubject} Questions</Text><Pressable onPress={() => setShowPalette(false)}><MaterialCommunityIcons name="close" size={18} color="#64748B" /></Pressable></View>
+            {hasSectionalTiming ? (
+              <Text style={styles.modalHint}>This test locks section switching. Finish this section or use Next Subject to continue.</Text>
+            ) : null}
             <ScrollView style={styles.paletteScroll} contentContainerStyle={styles.paletteGrid} showsVerticalScrollIndicator={false}>
               {currentQuestions.map((question, idx) => {
                 const answered = Boolean(answers[question.answerKey]);
@@ -738,6 +761,7 @@ const styles = StyleSheet.create({
   modalCard: { width: '100%', maxWidth: 430, backgroundColor: '#fff', borderRadius: 16, padding: 14 },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
   modalTitle: { fontSize: 14, fontWeight: '900', color: '#1E293B' },
+  modalHint: { fontSize: 12, lineHeight: 18, fontWeight: '600', color: '#475569', marginBottom: 12 },
   paletteScroll: { maxHeight: 320 },
   paletteGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
   paletteCell: { width: 38, height: 38, borderRadius: 8, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },

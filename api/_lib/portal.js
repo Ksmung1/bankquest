@@ -88,14 +88,29 @@ function signPortalEvent(identity, event) {
 async function forwardPortalEvent(identity, event) {
   const websiteAUrl = getEnv('WEBSITE_A_URL').replace(/\/+$/, '');
   const token = signPortalEvent(identity, event);
-  const response = await fetch(`${websiteAUrl}/api/sso/bankquest/sync`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ ok: true }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+
+  let response;
+  try {
+    response = await fetch(`${websiteAUrl}/api/sso/bankquest/sync`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ok: true }),
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Website A sync timed out.');
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 
   const payload = await response.json().catch(() => ({}));
 

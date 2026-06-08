@@ -3,6 +3,12 @@ import { type Session } from '@supabase/supabase-js';
 import { normalizeMockPayload, type LiveMockListItem, type LiveMockPayload } from '@/constants/mock-live-types';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
+export type LiveMockExamSummary = {
+  id: string;
+  title: string;
+  exam: string;
+};
+
 type LeaderboardRow = {
   id: string;
   name: string;
@@ -62,10 +68,14 @@ const SESSION_TTL_MS = 30 * 1000;
 const NULL_SESSION_TTL_MS = 2 * 1000;
 const SESSION_RECOVERY_ATTEMPTS = 4;
 const SESSION_RECOVERY_DELAY_MS = 250;
+const SESSION_REQUEST_TIMEOUT_MS = 2500;
 const USER_DASHBOARD_TTL_MS = 60 * 1000;
 const HISTORY_TTL_MS = 60 * 1000;
 const MOCKS_TTL_MS = 5 * 60 * 1000;
 const LEADERBOARD_TTL_MS = 2 * 60 * 1000;
+const DATA_REQUEST_TIMEOUT_MS = 4000;
+const MOCK_FETCH_RETRY_ATTEMPTS = 3;
+const MOCK_FETCH_RETRY_DELAY_MS = 250;
 
 const sessionCache: { entry: CacheEntry<Session | null> | null; pending: Promise<Session | null> | null } = {
   entry: null,
@@ -84,8 +94,15 @@ const mockTestsCache: { entry: CacheEntry<LiveMockListItem[]> | null; pending: P
   pending: null,
 };
 
+const mockExamListCache: { entry: CacheEntry<LiveMockExamSummary[]> | null; pending: Promise<LiveMockExamSummary[]> | null } = {
+  entry: null,
+  pending: null,
+};
+
 const mockTestByIdCache = new Map<string, CacheEntry<LiveMockPayload | null>>();
 const mockTestByIdPending = new Map<string, Promise<LiveMockPayload | null>>();
+const mockTestsByExamCache = new Map<string, CacheEntry<LiveMockListItem[]>>();
+const mockTestsByExamPending = new Map<string, Promise<LiveMockListItem[]>>();
 
 const leaderboardCache: { entry: CacheEntry<LeaderboardRow[]> | null; pending: Promise<LeaderboardRow[]> | null } = {
   entry: null,
@@ -96,6 +113,47 @@ function isFresh<T>(entry: CacheEntry<T> | null | undefined) {
   return Boolean(entry && entry.expiresAt > Date.now());
 }
 
+function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s.`)), timeoutMs);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      }
+    );
+  });
+}
+
+function isTimeoutError(error: unknown) {
+  return error instanceof Error && error.message.includes('timed out after');
+}
+
+async function retryMockFetch<T>(fetcher: () => Promise<T>, label: string) {
+  let lastError: unknown;
+
+  for (let attempt = 1; attempt <= MOCK_FETCH_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await fetcher();
+    } catch (error) {
+      lastError = error;
+
+      if (!isTimeoutError(error) || attempt === MOCK_FETCH_RETRY_ATTEMPTS) {
+        throw error;
+      }
+
+      console.warn(`${label} timed out. Retrying ${attempt + 1}/${MOCK_FETCH_RETRY_ATTEMPTS}...`);
+      await new Promise((resolve) => setTimeout(resolve, MOCK_FETCH_RETRY_DELAY_MS));
+    }
+  }
+
+  throw lastError;
+}
+
 function formatAttemptTime(iso: string) {
   const date = new Date(iso);
   return date.toLocaleString(undefined, {
@@ -104,6 +162,18 @@ function formatAttemptTime(iso: string) {
     hour: 'numeric',
     minute: '2-digit',
   });
+}
+
+function toExamKey(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function buildMockExamSummaries(tests: LiveMockListItem[]) {
+  return tests.map((test) => ({
+    id: test.id,
+    title: test.title,
+    exam: test.exam,
+  }));
 }
 
 export function clearAppDataCache() {
@@ -117,8 +187,12 @@ export function clearAppDataCache() {
   userProfilePending.clear();
   mockTestsCache.entry = null;
   mockTestsCache.pending = null;
+  mockExamListCache.entry = null;
+  mockExamListCache.pending = null;
   mockTestByIdCache.clear();
   mockTestByIdPending.clear();
+  mockTestsByExamCache.clear();
+  mockTestsByExamPending.clear();
   leaderboardCache.entry = null;
   leaderboardCache.pending = null;
 }
@@ -156,6 +230,8 @@ export function invalidateUserProfileCache(userId?: string | null) {
 export function invalidateMockTestsCache(testId?: string | null) {
   mockTestsCache.entry = null;
   mockTestsCache.pending = null;
+  mockExamListCache.entry = null;
+  mockExamListCache.pending = null;
   if (testId) {
     mockTestByIdCache.delete(testId);
     mockTestByIdPending.delete(testId);
@@ -163,6 +239,8 @@ export function invalidateMockTestsCache(testId?: string | null) {
     mockTestByIdCache.clear();
     mockTestByIdPending.clear();
   }
+  mockTestsByExamCache.clear();
+  mockTestsByExamPending.clear();
 }
 
 export function invalidateLeaderboardCache() {
@@ -189,7 +267,7 @@ export async function getCachedSession() {
     return null;
   }
 
-  if (isFresh(sessionCache.entry) && sessionCache.entry!.data) {
+  if (isFresh(sessionCache.entry)) {
     return sessionCache.entry!.data;
   }
 
@@ -197,7 +275,7 @@ export async function getCachedSession() {
     return sessionCache.pending;
   }
 
-  sessionCache.pending = (async () => {
+  sessionCache.pending = withTimeout((async () => {
       let session: Session | null = null;
 
       for (let attempt = 0; attempt < SESSION_RECOVERY_ATTEMPTS; attempt += 1) {
@@ -218,12 +296,16 @@ export async function getCachedSession() {
 
       sessionCache.entry = {
         data: session,
-        expiresAt: Date.now() + SESSION_TTL_MS,
+        expiresAt: Date.now() + (session ? SESSION_TTL_MS : NULL_SESSION_TTL_MS),
       };
       return session;
-    })()
+    })(), SESSION_REQUEST_TIMEOUT_MS, 'Session lookup')
     .catch((error) => {
       console.error('Failed to load session', error);
+      sessionCache.entry = {
+        data: null,
+        expiresAt: Date.now() + NULL_SESSION_TTL_MS,
+      };
       return null;
     })
     .finally(() => {
@@ -240,10 +322,18 @@ export function cacheSession(session: Session | null) {
   };
 }
 
+export function peekCachedSession() {
+  if (!isFresh(sessionCache.entry)) {
+    return undefined;
+  }
+  return sessionCache.entry!.data;
+}
+
 export async function getCachedMockTests() {
   if (!supabase || !hasSupabaseConfig) {
     return [] as LiveMockListItem[];
   }
+  const client = supabase;
 
   if (isFresh(mockTestsCache.entry)) {
     return mockTestsCache.entry!.data;
@@ -253,9 +343,9 @@ export async function getCachedMockTests() {
     return mockTestsCache.pending;
   }
 
-  mockTestsCache.pending = (async () => {
+  mockTestsCache.pending = retryMockFetch(() => withTimeout((async () => {
     try {
-      const testsRes = await supabase
+      const testsRes = await client
         .from('mock_tests')
         .select('id,title,exam,payload')
         .order('title', { ascending: true });
@@ -290,12 +380,14 @@ export async function getCachedMockTests() {
       return mapped;
     } catch (error) {
       console.error('Failed to load mock tests', error);
-      mockTestsCache.entry = { data: [], expiresAt: Date.now() + 15 * 1000 };
-      return [] as LiveMockListItem[];
+      if (mockTestsCache.entry?.data?.length) {
+        return mockTestsCache.entry.data;
+      }
+      throw error;
     } finally {
       mockTestsCache.pending = null;
     }
-  })();
+  })(), DATA_REQUEST_TIMEOUT_MS, 'Mock tests fetch'), 'Mock tests fetch');
 
   return mockTestsCache.pending;
 }
@@ -305,6 +397,183 @@ export function peekCachedMockTests() {
     return null;
   }
   return mockTestsCache.entry!.data;
+}
+
+export function peekCachedMockTestsByExam(exam: string) {
+  const normalizedExam = exam.trim();
+  if (!normalizedExam) return null;
+  const cached = mockTestsByExamCache.get(normalizedExam);
+  if (!isFresh(cached)) {
+    return null;
+  }
+  return cached!.data;
+}
+
+export async function getCachedMockTestsByExam(exam: string) {
+  const normalizedExam = exam.trim();
+  if (!normalizedExam) {
+    return [] as LiveMockListItem[];
+  }
+  const examKey = toExamKey(normalizedExam);
+
+  const allCached = peekCachedMockTests();
+  if (allCached) {
+    return allCached.filter((item) => toExamKey(item.exam) === examKey);
+  }
+
+  const cached = mockTestsByExamCache.get(normalizedExam);
+  if (isFresh(cached)) {
+    return cached!.data;
+  }
+
+  if (mockTestsByExamPending.has(normalizedExam)) {
+    return mockTestsByExamPending.get(normalizedExam)!;
+  }
+
+  if (!supabase || !hasSupabaseConfig) {
+    return [] as LiveMockListItem[];
+  }
+  const client = supabase;
+
+  const pending = retryMockFetch(() => withTimeout((async () => {
+    try {
+      const allTests = await getCachedMockTests();
+      const filtered = allTests.filter((item) => toExamKey(item.exam) === examKey);
+      const expiresAt = Date.now() + MOCKS_TTL_MS;
+      mockTestsByExamCache.set(normalizedExam, { data: filtered, expiresAt });
+      return filtered;
+    } catch (allTestsError) {
+      const response = await client
+        .from('mock_tests')
+        .select('id,title,exam,payload')
+        .eq('exam', normalizedExam)
+        .order('title', { ascending: true });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const mapped = (response.data ?? [])
+        .filter((row) => Boolean(row.payload))
+        .map((row) => ({
+          id: String(row.id),
+          title: String(row.title ?? (row.payload as LiveMockPayload).title ?? 'Mock Test'),
+          exam: String(row.exam ?? (row.payload as LiveMockPayload).exam ?? normalizedExam),
+          source: 'live' as const,
+          payload: normalizeMockPayload(row.payload as LiveMockPayload),
+        }));
+
+      mapped.sort((a, b) => {
+        const titleCompare = mockTitleCollator.compare(a.title, b.title);
+        if (titleCompare !== 0) return titleCompare;
+        return mockTitleCollator.compare(a.id, b.id);
+      });
+
+      const expiresAt = Date.now() + MOCKS_TTL_MS;
+      mockTestsByExamCache.set(normalizedExam, { data: mapped, expiresAt });
+      for (const item of mapped) {
+        mockTestByIdCache.set(item.id, { data: item.payload, expiresAt });
+      }
+      return mapped;
+    }
+  })(), DATA_REQUEST_TIMEOUT_MS, `Mock tests fetch for ${normalizedExam}`), `Mock tests fetch for ${normalizedExam}`)
+    .catch((error) => {
+      const stale = mockTestsByExamCache.get(normalizedExam)?.data;
+      if (stale?.length) {
+        return stale;
+      }
+      throw error;
+    })
+    .finally(() => {
+      mockTestsByExamPending.delete(normalizedExam);
+    });
+
+  mockTestsByExamPending.set(normalizedExam, pending);
+  return pending;
+}
+
+export async function getCachedMockExamList() {
+  if (!supabase || !hasSupabaseConfig) {
+    return [] as LiveMockExamSummary[];
+  }
+  const client = supabase;
+
+  if (isFresh(mockExamListCache.entry)) {
+    return mockExamListCache.entry!.data;
+  }
+
+  if (mockExamListCache.pending) {
+    return mockExamListCache.pending;
+  }
+
+  mockExamListCache.pending = retryMockFetch(() => withTimeout((async () => {
+    try {
+      const tests = await getCachedMockTests();
+      const rows = buildMockExamSummaries(tests);
+      mockExamListCache.entry = {
+        data: rows,
+        expiresAt: Date.now() + MOCKS_TTL_MS,
+      };
+      return rows;
+    } catch (mockTestsError) {
+      const response = await client
+        .from('mock_tests')
+        .select('id,title,exam')
+        .order('exam', { ascending: true })
+        .order('title', { ascending: true });
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      const rows = (response.data ?? []).map((row) => ({
+        id: String(row.id),
+        title: String(row.title ?? 'Mock Test'),
+        exam: String(row.exam ?? 'Exam'),
+      }));
+      mockExamListCache.entry = {
+        data: rows,
+        expiresAt: Date.now() + MOCKS_TTL_MS,
+      };
+      return rows;
+    } finally {
+      mockExamListCache.pending = null;
+    }
+  })(), DATA_REQUEST_TIMEOUT_MS, 'Mock exam list fetch'), 'Mock exam list fetch').catch((error) => {
+    const stale = mockExamListCache.entry?.data;
+    if (stale?.length) {
+      return stale;
+    }
+    throw error;
+  });
+
+  return mockExamListCache.pending;
+}
+
+export function peekCachedMockExamList() {
+  if (!isFresh(mockExamListCache.entry)) {
+    return null;
+  }
+  return mockExamListCache.entry!.data;
+}
+
+async function fetchMockTestByIdDirect(testId: string) {
+  if (!supabase || !hasSupabaseConfig) {
+    return null;
+  }
+  const client = supabase;
+
+  const testRes = await retryMockFetch(
+    () =>
+      withTimeout(
+        client.from('mock_tests').select('payload').eq('id', testId).single(),
+        DATA_REQUEST_TIMEOUT_MS,
+        `Mock test ${testId} fetch`
+      ),
+    `Mock test ${testId} fetch`
+  );
+
+  return !testRes.error && testRes.data?.payload ? normalizeMockPayload(testRes.data.payload as LiveMockPayload) : null;
 }
 
 export async function getCachedMockTestById(testId: string) {
@@ -318,27 +587,41 @@ export async function getCachedMockTestById(testId: string) {
   }
 
   const pending = (async () => {
-    const allTests = await getCachedMockTests();
-    const fromList = allTests.find((item) => item.id === testId)?.payload ?? null;
-    if (fromList) {
-      mockTestByIdPending.delete(testId);
-      return fromList;
+    const staleCachedPayload = cached?.data ?? null;
+
+    try {
+      const payload = await fetchMockTestByIdDirect(testId);
+      mockTestByIdCache.set(testId, {
+        data: payload,
+        expiresAt: Date.now() + MOCKS_TTL_MS,
+      });
+      return payload;
+    } catch (directFetchError) {
+      console.error(`Failed to load mock test ${testId} directly`, directFetchError);
     }
 
-    if (!supabase || !hasSupabaseConfig) {
-      mockTestByIdPending.delete(testId);
-      return null;
+    try {
+      const allTests = await getCachedMockTests();
+      const fromList = allTests.find((item) => item.id === testId)?.payload ?? null;
+      if (fromList) {
+        mockTestByIdCache.set(testId, {
+          data: fromList,
+          expiresAt: Date.now() + MOCKS_TTL_MS,
+        });
+        return fromList;
+      }
+    } catch (listFetchError) {
+      console.error(`Failed to load mock test ${testId} from list cache`, listFetchError);
     }
 
-    const testRes = await supabase.from('mock_tests').select('payload').eq('id', testId).single();
-    const payload = !testRes.error && testRes.data?.payload ? normalizeMockPayload(testRes.data.payload as LiveMockPayload) : null;
-    mockTestByIdCache.set(testId, {
-      data: payload,
-      expiresAt: Date.now() + MOCKS_TTL_MS,
-    });
+    if (staleCachedPayload) {
+      return staleCachedPayload;
+    }
+
+    return null;
+  })().finally(() => {
     mockTestByIdPending.delete(testId);
-    return payload;
-  })();
+  });
 
   mockTestByIdPending.set(testId, pending);
   return pending;
@@ -425,14 +708,14 @@ export async function getCachedHistoryRows(userId: string) {
     return [] as HistoryRow[];
   }
 
-  const pending = Promise.all([
+  const pending = withTimeout(Promise.all([
     supabase
       .from('mock_test_attempts')
       .select('id,test_id,score_total,total_questions,attempted_total,submitted_at')
       .eq('user_id', userId)
       .order('submitted_at', { ascending: false }),
     getCachedMockTests(),
-  ])
+  ]), DATA_REQUEST_TIMEOUT_MS, 'History fetch')
     .then(([attemptsRes, mockTests]) => {
       const testMap = new Map(
         mockTests.map((item) => [

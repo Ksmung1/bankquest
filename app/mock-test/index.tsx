@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getCachedMockTests, getCachedSession, peekCachedMockTests } from '@/lib/app-data-cache';
+import { getCachedMockTestsByExam, peekCachedMockTestsByExam } from '@/lib/app-data-cache';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { countSectionQuestions, flattenSectionQuestions, type LiveMockListItem } from '@/constants/mock-live-types';
-import { clearLocalMockTests } from '@/lib/local-mock-data';
 import { AppChrome } from '@/components/app-chrome';
 
 const examImages = {
@@ -135,16 +134,17 @@ function getOverviewMetrics(tests: LiveMockListItem[]) {
 }
 
 export default function MockTestsPage() {
-  const [tests, setTests] = useState<LiveMockListItem[]>(() => peekCachedMockTests() ?? []);
-  const [loading, setLoading] = useState(() => peekCachedMockTests() === null);
-  const [selectedTest, setSelectedTest] = useState<LiveMockListItem | null>(null);
-  const { width } = useWindowDimensions();
-  const isCompact = width < 760;
-  const pageScale = isCompact ? 0.6 : 0.8;
   const router = useRouter();
   const params = useLocalSearchParams<{ exam?: string | string[] }>();
   const examParam = Array.isArray(params.exam) ? params.exam[0] : params.exam;
   const selectedExam = typeof examParam === 'string' ? decodeURIComponent(examParam).trim() : '';
+  const [tests, setTests] = useState<LiveMockListItem[]>(() => (selectedExam ? peekCachedMockTestsByExam(selectedExam) ?? [] : []));
+  const [loading, setLoading] = useState(() => (selectedExam ? peekCachedMockTestsByExam(selectedExam) === null : false));
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [selectedTest, setSelectedTest] = useState<LiveMockListItem | null>(null);
+  const { width } = useWindowDimensions();
+  const isCompact = width < 760;
+  const pageScale = isCompact ? 0.6 : 0.8;
 
   useEffect(() => {
     if (!selectedExam) {
@@ -156,14 +156,14 @@ export default function MockTestsPage() {
 
     async function init() {
       try {
-        await clearLocalMockTests();
-        const mapped = supabase && hasSupabaseConfig ? await getCachedMockTests() : [];
+        setLoadError(null);
+        const mapped = supabase && hasSupabaseConfig ? await getCachedMockTestsByExam(selectedExam) : [];
         if (!mounted) return;
         setTests(mapped ?? []);
       } catch (error) {
         console.error('Failed to load exam mock tests', error);
         if (!mounted) return;
-        setTests([]);
+        setLoadError(error instanceof Error ? error.message : 'Failed to load mock tests.');
       } finally {
         if (mounted) {
           setLoading(false);
@@ -178,18 +178,14 @@ export default function MockTestsPage() {
   }, [router, selectedExam]);
 
   const filteredTests = useMemo(() => {
-    return tests.filter((test) => test.exam === selectedExam);
+    const examKey = selectedExam.trim().toLowerCase();
+    return tests.filter((test) => test.exam.trim().toLowerCase() === examKey);
   }, [selectedExam, tests]);
 
   const overview = useMemo(() => getOverviewMetrics(filteredTests), [filteredTests]);
   const examLogo = getExamImageSource(selectedExam);
 
   const handleOpenTestPress = async (test: LiveMockListItem) => {
-    const session = await getCachedSession();
-    if (!session?.user?.id) {
-      router.replace('/auth');
-      return;
-    }
     setSelectedTest(test);
   };
 
@@ -241,6 +237,8 @@ export default function MockTestsPage() {
           </View>
         ) : null}
 
+        {loadError ? <Text style={styles.errorText}>{loadError}</Text> : null}
+
         {!loading && filteredTests.length > 0 ? (
           <View style={[styles.statsGrid, { marginTop: scaleValue(24, pageScale), gap: scaleValue(16, pageScale) }]}>
             <View style={[styles.statCard, isCompact && styles.statCardMobile, { borderRadius: scaleValue(28, pageScale), paddingVertical: scaleValue(24, pageScale), paddingHorizontal: scaleValue(20, pageScale), minHeight: scaleValue(150, pageScale) }]}>
@@ -277,7 +275,7 @@ export default function MockTestsPage() {
           </View>
         ) : null}
 
-        {!loading && filteredTests.length === 0 ? <Text style={styles.empty}>No live mock tests found for this exam.</Text> : null}
+        {!loading && !loadError && filteredTests.length === 0 ? <Text style={styles.empty}>No live mock tests found for this exam.</Text> : null}
 
         <View style={[styles.mockList, { marginTop: scaleValue(28, pageScale), gap: scaleValue(22, pageScale) }]}>
           {filteredTests.map((test, index) => {
@@ -579,6 +577,12 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#64748B',
+  },
+  errorText: {
+    marginTop: 18,
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#DC2626',
   },
   mockList: {
     marginTop: 28,
