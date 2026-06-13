@@ -15,6 +15,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import ExamMathRenderer from '@/components/math/MathRenderer';
 import { flattenSectionQuestions, getImageUrl, normalizeSubject, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
 import { getCachedMockTestById, getCachedSession } from '@/lib/app-data-cache';
 import { getLocalMockAttemptById } from '@/lib/local-mock-data';
@@ -483,13 +484,13 @@ export default function MockTestReviewPage() {
           {currentQ.direction ? (
             <View style={s.directionCard}>
               <Text style={s.directionLabel}>{currentQ.direction.setType ? currentQ.direction.setType.replaceAll('_', ' ') : 'Direction'}</Text>
-              <Text style={s.directionText}>{currentQ.direction.directionText}</Text>
+              <ExamMathRenderer content={currentQ.direction.directionText} textStyle={s.directionText} />
               <InlineImage uri={directionImageUrl} style={s.directionImage} />
             </View>
           ) : null}
 
           {/* Question text */}
-          <Text style={s.qText}>{currentQ.question}</Text>
+          <ExamMathRenderer content={currentQ.question} textStyle={s.qText} />
           <InlineImage uri={questionImageUrl} style={s.questionImage} />
 
           {/* Options */}
@@ -520,7 +521,7 @@ export default function MockTestReviewPage() {
                     <Text style={[s.optionLabelText, { color: labelColor }]}>{opt.id}</Text>
                   </View>
                   <View style={s.optionBody}>
-                    <Text style={[s.optionText, { color: textColor }]}>{opt.text}</Text>
+                    <ExamMathRenderer content={opt.text} textStyle={[s.optionText, { color: textColor }]} />
                     <InlineImage uri={getImageUrl(opt.image, opt.imageUrl)} style={s.optionImage} />
                   </View>
                   {isCorrectOpt && (
@@ -548,12 +549,12 @@ export default function MockTestReviewPage() {
           {!isCorrect && (
             <View style={s.correctAnswerBox}>
               <MaterialCommunityIcons name="lightbulb-on" size={16} color="#D97706" />
-              <Text style={s.correctAnswerText}>
-                Correct Answer:{' '}
-                <Text style={{ fontWeight: '900', color: '#16A34A' }}>
+              <View style={s.correctAnswerText}>
+                <Text style={s.correctAnswerLabel}>Correct Answer:</Text>
+                <Text style={s.correctAnswerLine}>
                   {currentQ.correctAnswer} — {currentQ.options.find((o: LiveOption) => o.id === currentQ.correctAnswer)?.text}
                 </Text>
-              </Text>
+              </View>
             </View>
           )}
 
@@ -582,9 +583,7 @@ export default function MockTestReviewPage() {
                   <MaterialCommunityIcons name="text-box-outline" size={15} color="#2563EB" />
                   <Text style={s.explainSectionTitle}>Explanation</Text>
                 </View>
-                <Text style={s.explainBody}>
-                  {currentQ.explanation ?? 'No explanation provided for this question.'}
-                </Text>
+                <ExamMathRenderer content={currentQ.explanation ?? 'No explanation provided for this question.'} textStyle={s.explainBody} />
               </View>
 
               {/* Key points per option */}
@@ -611,9 +610,7 @@ export default function MockTestReviewPage() {
                             {kp.option}
                           </Text>
                         </View>
-                        <Text style={[s.kpText, isKpCorrect && { color: '#15803D' }]}>
-                          {kp.explanation}
-                        </Text>
+                        <ExamMathRenderer content={kp.explanation} textStyle={[s.kpText, isKpCorrect && { color: '#15803D' }]} />
                       </View>
                     );
                   })}
@@ -627,7 +624,7 @@ export default function MockTestReviewPage() {
                     <MaterialCommunityIcons name="school-outline" size={15} color="#0369A1" />
                     <Text style={[s.explainSectionTitle, { color: '#0369A1' }]}>Exam Insight</Text>
                   </View>
-                  <Text style={[s.explainBody, { color: '#0C4A6E' }]}>{currentQ.examInsight}</Text>
+                  <ExamMathRenderer content={currentQ.examInsight} textStyle={[s.explainBody, { color: '#0C4A6E' }]} />
                 </View>
               ) : null}
 
@@ -638,7 +635,7 @@ export default function MockTestReviewPage() {
                     <MaterialCommunityIcons name="alert-outline" size={15} color="#B45309" />
                     <Text style={[s.explainSectionTitle, { color: '#B45309' }]}>Common Trap</Text>
                   </View>
-                  <Text style={[s.explainBody, { color: '#92400E' }]}>{currentQ.commonTrap}</Text>
+                  <ExamMathRenderer content={currentQ.commonTrap} textStyle={[s.explainBody, { color: '#92400E' }]} />
                 </View>
               ) : null}
 
@@ -649,9 +646,12 @@ export default function MockTestReviewPage() {
                     <MaterialCommunityIcons name="brain" size={15} color="#7C3AED" />
                     <Text style={[s.explainSectionTitle, { color: '#7C3AED' }]}>Memory Trick</Text>
                   </View>
-                  <Text style={[s.explainBody, { color: '#5B21B6', fontStyle: 'italic' }]}>
-                    💡 {currentQ.memoryTrick}
-                  </Text>
+                  <View style={s.memoryTrickRow}>
+                    <Text style={s.memoryTrickIcon}>Lightbulb: </Text>
+                    <View style={s.memoryTrickBody}>
+                      <ExamMathRenderer content={currentQ.memoryTrick} textStyle={[s.explainBody, { color: '#5B21B6', fontStyle: 'italic' }]} />
+                    </View>
+                  </View>
                 </View>
               ) : null}
 
@@ -1103,7 +1103,9 @@ const s = StyleSheet.create({
     backgroundColor: '#FFFBEB', borderRadius: 10, borderWidth: 1, borderColor: '#FDE68A',
     padding: 10, marginBottom: 12,
   },
-  correctAnswerText: { flex: 1, fontSize: 12, fontWeight: '700', color: '#92400E' },
+  correctAnswerText: { flex: 1 },
+  correctAnswerLabel: { fontSize: 12, fontWeight: '700', color: '#92400E' },
+  correctAnswerLine: { fontSize: 12, fontWeight: '900', color: '#16A34A', lineHeight: 18 },
 
   // Explanation
   explainToggle: {
@@ -1123,6 +1125,9 @@ const s = StyleSheet.create({
   explainSectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
   explainSectionTitle: { fontSize: 12, fontWeight: '900', color: '#2563EB' },
   explainBody: { fontSize: 13, fontWeight: '600', color: '#334155', lineHeight: 20 },
+  memoryTrickRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  memoryTrickIcon: { fontSize: 13, fontWeight: '700', color: '#5B21B6', fontStyle: 'italic' },
+  memoryTrickBody: { flex: 1 },
   keyPointRow: {
     flexDirection: 'row', gap: 10, alignItems: 'flex-start',
     borderLeftWidth: 3, borderRadius: 6,

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import ExamMathRenderer from '@/components/math/MathRenderer';
 import { flattenSectionQuestions, getImageUrl, normalizeSubject, type FlattenedLiveQuestion, type LiveMockPayload } from '@/constants/mock-live-types';
 import { cacheSession, getCachedMockTestById, getCachedSession, getCachedUserProfile, invalidateHistoryCache, invalidateLeaderboardCache, invalidateMockTestsCache, invalidateUserDashboardCache } from '@/lib/app-data-cache';
 import { saveLocalMockAttempt } from '@/lib/local-mock-data';
@@ -626,12 +627,12 @@ export default function MockTestDetailPage() {
           {currentQuestion.direction ? (
             <View style={styles.directionCard}>
               <Text style={styles.directionLabel}>{currentQuestion.direction.setType ? currentQuestion.direction.setType.replaceAll('_', ' ') : 'Direction'}</Text>
-              <Text style={styles.directionText}>{currentQuestion.direction.directionText}</Text>
+              <ExamMathRenderer content={currentQuestion.direction.directionText} textStyle={styles.directionText} />
               <InlineImage uri={directionImageUrl} style={styles.directionImage} />
             </View>
           ) : null}
 
-          <Text style={styles.questionText}>{currentQuestion.question}</Text>
+          <ExamMathRenderer content={currentQuestion.question} textStyle={styles.questionText} />
           <InlineImage uri={questionImageUrl} style={styles.questionImage} />
 
           <View style={styles.qActions}>
@@ -650,7 +651,7 @@ export default function MockTestDetailPage() {
                 <Pressable key={opt.id} onPress={() => setAnswers((prev) => ({ ...prev, [answerKey]: opt.id as OptionKey }))} style={[styles.optionItem, isSelected && styles.optionSelected]}>
                   <View style={[styles.optionLabel, isSelected && styles.optionLabelSelected]}><Text style={[styles.optionLabelText, isSelected && styles.optionLabelTextSelected]}>{opt.id}</Text></View>
                   <View style={styles.optionBody}>
-                    <Text style={styles.optionText}>{opt.text}</Text>
+                    <ExamMathRenderer content={opt.text} textStyle={styles.optionText} />
                     <InlineImage uri={getImageUrl(opt.image, opt.imageUrl)} style={styles.optionImage} />
                   </View>
                 </Pressable>

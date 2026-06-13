@@ -3,6 +3,7 @@ import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from '
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
+import ExamMathRenderer from '@/components/math/MathRenderer';
 import { flattenSectionQuestions, getImageUrl, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
 import { getCachedMockTestById, getCachedSession } from '@/lib/app-data-cache';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
@@ -103,7 +104,7 @@ export default function SavedQuestionsPage() {
                 <Pressable onPress={() => toggleOpen(question.answerKey)} style={styles.cardHeader}>
                   <View style={styles.cardHeaderMain}>
                     <Text style={styles.cardCount}>Saved {index + 1}</Text>
-                    <Text style={styles.cardQuestion} numberOfLines={isOpen ? undefined : 2}>{question.question}</Text>
+                    <ExamMathRenderer content={question.question} numberOfLines={isOpen ? undefined : 2} textStyle={styles.cardQuestion} />
                   </View>
                   <MaterialCommunityIcons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
                 </Pressable>
@@ -113,7 +114,7 @@ export default function SavedQuestionsPage() {
                     {question.direction ? (
                       <View style={styles.directionCard}>
                         <Text style={styles.directionLabel}>{question.direction.setType ? question.direction.setType.replaceAll('_', ' ') : 'Direction'}</Text>
-                        <Text style={styles.directionText}>{question.direction.directionText}</Text>
+                        <ExamMathRenderer content={question.direction.directionText} textStyle={styles.directionText} />
                         <InlineImage uri={directionImageUrl} style={styles.directionImage} />
                       </View>
                     ) : null}
@@ -128,7 +129,7 @@ export default function SavedQuestionsPage() {
                           <View key={opt.id} style={[styles.optionItem, isCorrect && styles.optionCorrect, isSelected && styles.optionSelected]}>
                             <View style={styles.optionLabel}><Text style={styles.optionLabelText}>{opt.id}</Text></View>
                             <View style={styles.optionBody}>
-                              <Text style={styles.optionText}>{opt.text}</Text>
+                              <ExamMathRenderer content={opt.text} textStyle={styles.optionText} />
                               <InlineImage uri={getImageUrl(opt.image, opt.imageUrl)} style={styles.optionImage} />
                             </View>
                             {isCorrect ? <MaterialCommunityIcons name="check-circle" size={18} color="#16A34A" /> : null}
@@ -140,32 +141,37 @@ export default function SavedQuestionsPage() {
 
                     <View style={styles.detailBox}>
                       <Text style={styles.detailTitle}>Correct Answer</Text>
-                      <Text style={styles.detailText}>{`${question.correctAnswer} - ${question.options.find((option) => option.id === question.correctAnswer)?.text ?? ''}`}</Text>
+                      <View style={styles.correctAnswerRow}>
+                        <Text style={styles.correctAnswerPrefix}>{`${question.correctAnswer} - `}</Text>
+                        <View style={styles.correctAnswerBody}>
+                          <ExamMathRenderer content={question.options.find((option) => option.id === question.correctAnswer)?.text ?? ''} textStyle={styles.detailText} />
+                        </View>
+                      </View>
                     </View>
 
                     <View style={styles.detailBox}>
                       <Text style={styles.detailTitle}>Explanation</Text>
-                      <Text style={styles.detailText}>{question.explanation ?? 'No explanation provided for this question.'}</Text>
+                      <ExamMathRenderer content={question.explanation ?? 'No explanation provided for this question.'} textStyle={styles.detailText} />
                     </View>
 
                     {question.examInsight ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Exam Insight</Text>
-                        <Text style={styles.detailText}>{question.examInsight}</Text>
+                        <ExamMathRenderer content={question.examInsight} textStyle={styles.detailText} />
                       </View>
                     ) : null}
 
                     {question.commonTrap ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Common Trap</Text>
-                        <Text style={styles.detailText}>{question.commonTrap}</Text>
+                        <ExamMathRenderer content={question.commonTrap} textStyle={styles.detailText} />
                       </View>
                     ) : null}
 
                     {question.memoryTrick ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Memory Trick</Text>
-                        <Text style={styles.detailText}>{question.memoryTrick}</Text>
+                        <ExamMathRenderer content={question.memoryTrick} textStyle={styles.detailText} />
                       </View>
                     ) : null}
                   </View>
@@ -229,4 +235,7 @@ const styles = StyleSheet.create({
   detailBox: { backgroundColor: '#F8FAFC', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', marginBottom: 10 },
   detailTitle: { fontSize: 12, fontWeight: '900', color: '#2563EB', marginBottom: 6 },
   detailText: { fontSize: 13, fontWeight: '600', color: '#334155', lineHeight: 20 },
+  correctAnswerRow: { flexDirection: 'row', alignItems: 'flex-start' },
+  correctAnswerPrefix: { fontSize: 13, fontWeight: '700', color: '#334155' },
+  correctAnswerBody: { flex: 1 },
 });
