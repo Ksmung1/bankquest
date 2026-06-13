@@ -28,6 +28,7 @@ function MathRendererComponent({
   const safeContent = content ?? '';
   const renderMath = shouldRenderMath(safeContent, numberOfLines);
   const [height, setHeight] = useState(lineHeight + 4);
+  const [renderFailed, setRenderFailed] = useState(false);
 
   const html = useMemo(() => {
     if (!renderMath) return '';
@@ -41,6 +42,10 @@ function MathRendererComponent({
   }, [fontFamily, fontSize, lineHeight, renderMath, safeContent, textColor]);
 
   useEffect(() => {
+    setRenderFailed(false);
+  }, [safeContent]);
+
+  useEffect(() => {
     if (!renderMath) return undefined;
     const handler = (event: MessageEvent<{ type?: string; height?: number }>) => {
       if (event.data?.type === 'math-height' && typeof event.data.height === 'number') {
@@ -51,7 +56,7 @@ function MathRendererComponent({
     return () => window.removeEventListener('message', handler);
   }, [lineHeight, renderMath]);
 
-  if (!renderMath) {
+  if (!renderMath || renderFailed) {
     return (
       <Text numberOfLines={numberOfLines} style={[{ fontSize, lineHeight, color: textColor }, textStyle]}>
         {toPlainMathPreview(safeContent)}
@@ -74,6 +79,7 @@ function MathRendererComponent({
       scrolling="no"
       sandbox="allow-scripts"
       title={`math-renderer-${Platform.OS}`}
+      onError={() => setRenderFailed(true)}
     />
   );
 }

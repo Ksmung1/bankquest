@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 
@@ -15,6 +15,7 @@ type SelectedMockFile = {
 
 const REQUEST_TIMEOUT_MS = 45000;
 const UPSERT_BATCH_SIZE = 5;
+const ADMIN_UPLOAD_PASSWORD = '123456';
 
 function withTimeout<T>(promise: PromiseLike<T>, timeoutMs: number, label: string) {
   return new Promise<T>((resolve, reject) => {
@@ -162,8 +163,8 @@ function validateMockPayload(raw: unknown): ValidationResult {
 }
 
 export default function UploadMockTestPage() {
-  const [authChecked, setAuthChecked] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [isAdminVerified, setIsAdminVerified] = useState(false);
   const [fileName, setFileName] = useState('');
   const [payload, setPayload] = useState<LiveMockPayload | null>(null);
   const [selectedMocks, setSelectedMocks] = useState<SelectedMockFile[]>([]);
@@ -173,42 +174,19 @@ export default function UploadMockTestPage() {
   const [overrideExam, setOverrideExam] = useState('');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
-  const canUpload = useMemo(() => (selectedMocks.length > 0 || Boolean(rawJson.trim())) && !uploading, [rawJson, selectedMocks.length, uploading]);
+  const canUpload = useMemo(() => isAdminVerified && (selectedMocks.length > 0 || Boolean(rawJson.trim())) && !uploading, [isAdminVerified, rawJson, selectedMocks.length, uploading]);
 
-  useEffect(() => {
-    let mounted = true;
-
-    async function checkAccess() {
-      if (!supabase || !hasSupabaseConfig) {
-        if (mounted) {
-          setIsAdmin(false);
-          setAuthChecked(true);
-        }
-        return;
-      }
-
-      const { data: sessionData } = await supabase.auth.getSession();
-      const userId = sessionData.session?.user?.id;
-      if (!userId) {
-        if (mounted) {
-          setIsAdmin(false);
-          setAuthChecked(true);
-        }
-        return;
-      }
-
-      const { data } = await supabase.from('admin_users').select('user_id').eq('user_id', userId).maybeSingle();
-      if (mounted) {
-        setIsAdmin(Boolean(data?.user_id));
-        setAuthChecked(true);
-      }
+  const verifyAdminPassword = () => {
+    if (adminPassword !== ADMIN_UPLOAD_PASSWORD) {
+      setIsAdminVerified(false);
+      setStatusMessage('Admin password is incorrect.');
+      Alert.alert('Access denied', 'The admin password you entered is incorrect.');
+      return;
     }
 
-    checkAccess();
-    return () => {
-      mounted = false;
-    };
-  }, []);
+    setIsAdminVerified(true);
+    setStatusMessage('Admin password verified. You can upload mock tests now.');
+  };
 
   const parseCurrentJson = (): LiveMockPayload => {
     const text = rawJson.trim();
@@ -303,8 +281,8 @@ export default function UploadMockTestPage() {
         throw new Error('Supabase is not configured.');
       }
 
-      if (!isAdmin) {
-        throw new Error('Admin access is required to upload mock tests.');
+      if (!isAdminVerified) {
+        throw new Error('Enter the admin password to unlock uploads.');
       }
 
       const { data: sessionData } = await withTimeout(supabase.auth.getSession(), REQUEST_TIMEOUT_MS, 'Session check');
@@ -393,33 +371,34 @@ export default function UploadMockTestPage() {
     }
   };
 
-  if (authChecked && !isAdmin) {
-    return (
-      <View style={styles.page}>
-        <View style={styles.restrictedCard}>
-          <Text style={styles.restrictedTitle}>Restricted Access</Text>
-          <Text style={styles.restrictedText}>This page is only available to admin users. Your account does not have permission to open `admin/upload-mocktest`.</Text>
-        </View>
-      </View>
-    );
-  }
-
-  if (!authChecked) {
-    return (
-      <View style={styles.page}>
-        <View style={styles.restrictedCard}>
-          <Text style={styles.restrictedTitle}>Checking Access</Text>
-          <Text style={styles.restrictedText}>Verifying whether your account can open this admin page.</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.page}>
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Admin Upload Mock Test</Text>
         <Text style={styles.subtitle}>Upload validated mock tests or PYQs to the live database, one at a time or in bulk.</Text>
+
+        <View style={styles.accessCard}>
+          <Text style={styles.accessTitle}>Admin Verification</Text>
+          <Text style={styles.accessText}>
+            Enter the admin password to unlock uploads for this session on the current screen.
+          </Text>
+          <TextInput
+            value={adminPassword}
+            onChangeText={setAdminPassword}
+            style={styles.input}
+            placeholder="Enter admin password"
+            placeholderTextColor="#94A3B8"
+            secureTextEntry
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          <Pressable onPress={verifyAdminPassword} style={({ pressed }) => [styles.verifyBtn, pressed && styles.pressed]}>
+            <Text style={styles.verifyBtnText}>{isAdminVerified ? 'Verified' : 'Verify Password'}</Text>
+          </Pressable>
+          <Text style={[styles.accessState, isAdminVerified ? styles.accessStateVerified : styles.accessStateLocked]}>
+            {isAdminVerified ? 'Upload access unlocked.' : 'Upload access locked until password is verified.'}
+          </Text>
+        </View>
 
         <Pressable onPress={pickFile} style={({ pressed }) => [styles.pickBtn, pressed && styles.pressed]}>
           <Text style={styles.pickBtnText}>Select JSON File(s)</Text>
@@ -484,6 +463,14 @@ const styles = StyleSheet.create({
   container: { padding: 16, paddingBottom: 32 },
   title: { fontSize: 24, fontWeight: '900', color: '#1E293B' },
   subtitle: { marginTop: 4, fontSize: 13, color: '#64748B', fontWeight: '600', marginBottom: 14 },
+  accessCard: { marginBottom: 14, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', gap: 8 },
+  accessTitle: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
+  accessText: { fontSize: 12, lineHeight: 18, color: '#64748B', fontWeight: '600' },
+  verifyBtn: { backgroundColor: '#0F766E', borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
+  verifyBtnText: { color: '#fff', fontSize: 13, fontWeight: '800' },
+  accessState: { fontSize: 12, fontWeight: '700' },
+  accessStateVerified: { color: '#0F766E' },
+  accessStateLocked: { color: '#B45309' },
   pickBtn: { backgroundColor: '#2563EB', borderRadius: 10, paddingVertical: 12, alignItems: 'center' },
   pickBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
   infoCard: { marginTop: 12, backgroundColor: '#fff', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#E2E8F0', gap: 4 },
@@ -499,17 +486,5 @@ const styles = StyleSheet.create({
   previewTitle: { marginTop: 16, marginBottom: 8, fontSize: 13, color: '#1E293B', fontWeight: '800' },
   previewBox: { backgroundColor: '#0F172A', borderRadius: 10, padding: 10, minHeight: 120 },
   previewInput: { minHeight: 220, color: '#E2E8F0', fontSize: 11, lineHeight: 16, fontFamily: 'monospace', textAlignVertical: 'top' },
-  restrictedCard: {
-    margin: 16,
-    backgroundColor: '#fff',
-    borderRadius: 16,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  restrictedTitle: { fontSize: 22, fontWeight: '900', color: '#991B1B' },
-  restrictedText: { marginTop: 10, fontSize: 13, lineHeight: 20, color: '#475569', fontWeight: '600', textAlign: 'center' },
   pressed: { opacity: 0.85 },
 });

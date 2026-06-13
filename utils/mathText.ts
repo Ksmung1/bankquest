@@ -8,7 +8,7 @@ export type MathSegment = {
 };
 
 const EXPLICIT_MATH_REGEX = /\[\[([\s\S]+?)\]\]|\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\]|\\\(([\s\S]+?)\\\)|\$([^$\n]+?)\$/g;
-const MATH_CANDIDATE_REGEX = /\b(?:sqrt\([^()]+\)|root\([^()]+,[^()]+\)|(?:sin|cos|tan|cot|sec|cosec|log|ln)\s+[A-Za-z0-9]+|(?:angle|triangle)\s+[A-Z]{2,4}|(?:[A-Za-z0-9()]+(?:\s*\/\s*[A-Za-z0-9()]+)?(?:\s*\^\s*-?[A-Za-z0-9()]+)?)(?:\s*(?:\+|-|\*|\/|=|<=|>=|!=|<|>)\s*(?:sqrt\([^()]+\)|root\([^()]+,[^()]+\)|(?:sin|cos|tan|cot|sec|cosec|log|ln)\s+[A-Za-z0-9]+|(?:angle|triangle)\s+[A-Z]{2,4}|[A-Za-z0-9()]+(?:\s*\/\s*[A-Za-z0-9()]+)?(?:\s*\^\s*-?[A-Za-z0-9()]+)?))+|[A-Za-z0-9()]+\s*\/\s*[A-Za-z0-9()]+|[A-Za-z0-9()]+\s*\^\s*-?[A-Za-z0-9()]+)\b/g;
+const MATH_CANDIDATE_REGEX = /\b(?:sqrt\([^()]+\)|root\([^()]+,[^()]+\)|(?:sin|cos|tan|cot|sec|cosec|log|ln)\s+[A-Za-z0-9]+|(?:angle|triangle)\s+[A-Z]{2,4}|(?:[A-Za-z0-9()]+(?:\s*\/\s*[A-Za-z0-9()]+)?(?:\s*\^\s*-?[A-Za-z0-9()]+)?)(?:\s*(?:\+|-|\*|\/|=|<=|>=|!=|<|>)\s*(?:sqrt\([^()]+\)|root\([^()]+,[^()]+\)|(?:sin|cos|tan|cot|sec|cosec|log|ln)\s+[A-Za-z0-9]+|(?:angle|triangle)\s+[A-Z]{2,4}|[A-Za-z0-9()]+(?:\s*\/\s*[A-Za-z0-9()]+)?(?:\s*\^\s*-?[A-Za-z0-9()]+)?))+|[A-Za-z0-9()]+\s*\/\s*[A-Za-z0-9()]+|[A-Za-z0-9()]+\s*\^\s*-?[A-Za-z0-9()]+)/g;
 const MATH_HINT_REGEX = /(<=|>=|!=|=|\+|-|\*|\/|\^|sqrt\(|root\(|\b(?:sin|cos|tan|cot|sec|cosec|log|ln|theta|alpha|beta|gamma|delta|pi|angle|triangle)\b)/i;
 const LATEX_COMMAND_REGEX = /\\[A-Za-z]+/;
 const GREEK_WORDS = ['alpha', 'beta', 'gamma', 'delta', 'theta', 'pi'] as const;
@@ -46,7 +46,7 @@ function splitPlainTextIntoSegments(value: string): MathSegment[] {
       leading += candidate[0];
       candidate = candidate.slice(1);
     }
-    while (/[).,;:!?'"\\\]]$/.test(candidate)) {
+    while (/[.,;:!?'"\\]$/.test(candidate)) {
       trailing = candidate.slice(-1) + trailing;
       candidate = candidate.slice(0, -1);
     }
@@ -59,7 +59,7 @@ function splitPlainTextIntoSegments(value: string): MathSegment[] {
     if (adjustedStart > cursor) {
       segments.push({ type: 'text', content: value.slice(cursor, adjustedStart) });
     }
-    segments.push({ type: 'math', content: candidate });
+    segments.push({ type: 'math', content: normalizeMathExpression(candidate) });
     cursor = adjustedEnd;
   }
 
@@ -135,13 +135,13 @@ export function tokenizeMathContent(content: string): MathSegment[] {
     if (match[1] !== undefined) {
       segments.push({ type: 'math', content: normalizeMathExpression(match[1]), explicit: true });
     } else if (match[2] !== undefined) {
-      segments.push({ type: 'math', content: match[2].trim(), display: true, explicit: true });
+      segments.push({ type: 'math', content: normalizeMathExpression(match[2]), display: true, explicit: true });
     } else if (match[3] !== undefined) {
-      segments.push({ type: 'math', content: match[3].trim(), display: true, explicit: true });
+      segments.push({ type: 'math', content: normalizeMathExpression(match[3]), display: true, explicit: true });
     } else if (match[4] !== undefined) {
-      segments.push({ type: 'math', content: match[4].trim(), explicit: true });
+      segments.push({ type: 'math', content: normalizeMathExpression(match[4]), explicit: true });
     } else if (match[5] !== undefined) {
-      segments.push({ type: 'math', content: match[5].trim(), explicit: true });
+      segments.push({ type: 'math', content: normalizeMathExpression(match[5]), explicit: true });
     }
 
     cursor = start + full.length;

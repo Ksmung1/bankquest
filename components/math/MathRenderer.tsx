@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useEffect, useMemo, useState } from 'react';
 import { Platform, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle, View } from 'react-native';
 import { WebView } from 'react-native-webview';
 
@@ -29,6 +29,11 @@ function MathRendererComponent({
   const safeContent = content ?? '';
   const renderMath = shouldRenderMath(safeContent, numberOfLines);
   const [height, setHeight] = useState(lineHeight + 4);
+  const [renderFailed, setRenderFailed] = useState(false);
+
+  useEffect(() => {
+    setRenderFailed(false);
+  }, [safeContent]);
 
   const html = useMemo(() => {
     if (!renderMath) return '';
@@ -41,7 +46,7 @@ function MathRendererComponent({
     });
   }, [fontFamily, fontSize, lineHeight, renderMath, safeContent, textColor]);
 
-  if (!renderMath) {
+  if (!renderMath || renderFailed) {
     return (
       <Text numberOfLines={numberOfLines} style={[{ fontSize, lineHeight, color: textColor }, textStyle]}>
         {toPlainMathPreview(safeContent)}
@@ -75,6 +80,8 @@ function MathRendererComponent({
         overScrollMode="never"
         bounces={false}
         automaticallyAdjustContentInsets={false}
+        onError={() => setRenderFailed(true)}
+        onHttpError={() => setRenderFailed(true)}
       />
     </View>
   );
