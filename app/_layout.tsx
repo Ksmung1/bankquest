@@ -24,8 +24,12 @@ export default function RootLayout() {
   const params = useGlobalSearchParams();
   const inSSOCallback = isSSOCallbackPath(pathname, params);
   const isGuestAccessible = GUEST_ACCESSIBLE_PATHS.has(pathname);
+  const isAdminRoute = pathname.startsWith('/admin');
   const [accessReady, setAccessReady] = useState(!hasSupabaseConfig);
   const [hasPortalAccess, setHasPortalAccess] = useState(!hasSupabaseConfig);
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  const hasAdminRouteAccess = isAdminRoute && Boolean(sessionUserId);
+  const hasCurrentRouteAccess = hasPortalAccess || hasAdminRouteAccess;
 
   useEffect(() => {
     if (!supabase || !hasSupabaseConfig) return;
@@ -35,6 +39,7 @@ export default function RootLayout() {
       const session = await getCachedSession();
       cacheSession(session ?? null);
       const linked = isPortalLinkedSession(session);
+      setSessionUserId(session?.user?.id ?? null);
       setHasPortalAccess(linked);
       setAccessReady(true);
       const user = session?.user;
@@ -55,6 +60,7 @@ export default function RootLayout() {
     const { data } = client.auth.onAuthStateChange(async (event, session) => {
       cacheSession(session ?? null);
       const linked = isPortalLinkedSession(session);
+      setSessionUserId(session?.user?.id ?? null);
       setHasPortalAccess(linked);
       setAccessReady(true);
       const user = session?.user;
@@ -81,21 +87,21 @@ export default function RootLayout() {
       return;
     }
 
-    if (hasPortalAccess && pathname === '/auth' && !inSSOCallback) {
+    if (hasCurrentRouteAccess && pathname === '/auth' && !inSSOCallback) {
       router.replace('/' as never);
       return;
     }
 
-    if (!hasPortalAccess && pathname !== '/auth' && !inSSOCallback && !isGuestAccessible) {
+    if (!hasCurrentRouteAccess && pathname !== '/auth' && !inSSOCallback && !isGuestAccessible) {
       router.replace('/auth' as never);
     }
-  }, [accessReady, hasPortalAccess, inSSOCallback, isGuestAccessible, pathname, router]);
+  }, [accessReady, hasCurrentRouteAccess, inSSOCallback, isGuestAccessible, pathname, router]);
 
   if (!accessReady && !isGuestAccessible && !inSSOCallback) {
     return null;
   }
 
-  if (!hasPortalAccess && pathname !== '/auth' && !isGuestAccessible && !inSSOCallback) {
+  if (!hasCurrentRouteAccess && pathname !== '/auth' && !isGuestAccessible && !inSSOCallback) {
     return null;
   }
 
