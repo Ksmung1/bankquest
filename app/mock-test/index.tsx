@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { getCachedMockTestsByExam, peekCachedMockTestsByExam } from '@/lib/app-data-cache';
+import { getCachedMockTestsByExam, getCachedSession, peekCachedMockTestsByExam } from '@/lib/app-data-cache';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 import { countSectionQuestions, flattenSectionQuestions, type LiveMockListItem } from '@/constants/mock-live-types';
 import { AppChrome } from '@/components/app-chrome';
@@ -139,6 +139,7 @@ export default function MockTestsPage() {
   const examParam = Array.isArray(params.exam) ? params.exam[0] : params.exam;
   const selectedExam = typeof examParam === 'string' ? decodeURIComponent(examParam).trim() : '';
   const [tests, setTests] = useState<LiveMockListItem[]>(() => (selectedExam ? peekCachedMockTestsByExam(selectedExam) ?? [] : []));
+  const [attemptCounts, setAttemptCounts] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(() => (selectedExam ? peekCachedMockTestsByExam(selectedExam) === null : false));
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedTest, setSelectedTest] = useState<LiveMockListItem | null>(null);
@@ -160,6 +161,42 @@ export default function MockTestsPage() {
         const mapped = supabase && hasSupabaseConfig ? await getCachedMockTestsByExam(selectedExam) : [];
         if (!mounted) return;
         setTests(mapped ?? []);
+
+        if (!supabase || !hasSupabaseConfig || !mapped.length) {
+          setAttemptCounts({});
+          return;
+        }
+
+        const session = await getCachedSession();
+        const userId = session?.user?.id ?? null;
+
+        if (!mounted) return;
+
+        if (!userId) {
+          setAttemptCounts({});
+          return;
+        }
+
+        const { data: attempts, error: attemptsError } = await supabase
+          .from('mock_test_attempts')
+          .select('test_id')
+          .eq('user_id', userId)
+          .in('test_id', mapped.map((test) => test.id));
+
+        if (!mounted) return;
+
+        if (attemptsError) {
+          throw attemptsError;
+        }
+
+        const nextAttemptCounts = (attempts ?? []).reduce<Record<string, number>>((acc, row) => {
+          const testId = String(row.test_id ?? '');
+          if (!testId) return acc;
+          acc[testId] = (acc[testId] ?? 0) + 1;
+          return acc;
+        }, {});
+
+        setAttemptCounts(nextAttemptCounts);
       } catch (error) {
         console.error('Failed to load exam mock tests', error);
         if (!mounted) return;
@@ -282,6 +319,7 @@ export default function MockTestsPage() {
             const metrics = getTestMetrics(test);
             const theme = accentThemes[index % accentThemes.length];
             const pillLabel = recommendationLabels[index] ?? recommendationLabels[recommendationLabels.length - 1];
+            const attemptCount = attemptCounts[test.id] ?? 0;
 
             return (
               <View key={test.id} style={[styles.mockCard, { borderRadius: scaleValue(32, pageScale), padding: scaleValue(26, pageScale) }]}>
@@ -313,8 +351,17 @@ export default function MockTestsPage() {
                         </View>
                       </View>
 
-                      <View style={[styles.recommendationPill, { backgroundColor: theme.pillBg, marginTop: scaleValue(14, pageScale), paddingHorizontal: scaleValue(16, pageScale), paddingVertical: scaleValue(10, pageScale) }]}>
-                        <Text style={[styles.recommendationText, { color: theme.pillText, fontSize: scaleValue(14, pageScale) }]}>{pillLabel}</Text>
+                      <View style={[styles.infoPillsRow, { marginTop: scaleValue(14, pageScale), gap: scaleValue(10, pageScale) }]}>
+                        <View style={[styles.recommendationPill, { backgroundColor: theme.pillBg, paddingHorizontal: scaleValue(16, pageScale), paddingVertical: scaleValue(10, pageScale) }]}>
+                          <Text style={[styles.recommendationText, { color: theme.pillText, fontSize: scaleValue(14, pageScale) }]}>{pillLabel}</Text>
+                        </View>
+
+                        {attemptCount > 0 ? (
+                          <View style={[styles.attemptPill, { paddingHorizontal: scaleValue(16, pageScale), paddingVertical: scaleValue(10, pageScale) }]}>
+                            <MaterialCommunityIcons name="history" size={scaleValue(14, pageScale)} color="#0F766E" />
+                            <Text style={[styles.attemptPillText, { fontSize: scaleValue(14, pageScale) }]}>Attempts: {attemptCount}</Text>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
                   </View>
@@ -656,8 +703,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#64729B',
   },
+  infoPillsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
   recommendationPill: {
-    marginTop: 14,
     alignSelf: 'flex-start',
     paddingHorizontal: 16,
     paddingVertical: 10,
@@ -666,6 +717,21 @@ const styles = StyleSheet.create({
   recommendationText: {
     fontSize: 14,
     fontWeight: '800',
+  },
+  attemptPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 999,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  attemptPillText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#0F766E',
   },
   mockActions: {
     flexDirection: 'row',
