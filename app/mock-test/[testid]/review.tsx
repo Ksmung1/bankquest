@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import ExamMathRenderer from '@/components/math/MathRenderer';
-import { flattenSectionQuestions, getImageUrl, normalizeSubject, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
+import { flattenSectionQuestions, getImageUrl, normalizeSubject, shouldDisableMathForSection, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
 import { getCachedMockTestById, getCachedSession } from '@/lib/app-data-cache';
 import { getLocalMockAttemptById } from '@/lib/local-mock-data';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
@@ -350,6 +350,7 @@ export default function MockTestReviewPage() {
 
   // Current question data
   const currentQ = flatQuestions[currentIdx] ?? null;
+  const disableMath = shouldDisableMathForSection(currentQ?.sectionName);
   const userAnswer = currentQ ? (attempt?.answers?.[currentQ.answerKey] ?? null) : null;
   const questionStatus: 'correct' | 'wrong' | 'skipped' = !userAnswer
     ? 'skipped'
@@ -484,13 +485,13 @@ export default function MockTestReviewPage() {
           {currentQ.direction ? (
             <View style={s.directionCard}>
               <Text style={s.directionLabel}>{currentQ.direction.setType ? currentQ.direction.setType.replaceAll('_', ' ') : 'Direction'}</Text>
-              <ExamMathRenderer content={currentQ.direction.directionText} textStyle={s.directionText} />
+              <ExamMathRenderer content={currentQ.direction.directionText} textStyle={s.directionText} disableMath={disableMath} />
               <InlineImage uri={directionImageUrl} style={s.directionImage} />
             </View>
           ) : null}
 
           {/* Question text */}
-          <ExamMathRenderer content={currentQ.question} textStyle={s.qText} />
+          <ExamMathRenderer content={currentQ.question} textStyle={s.qText} disableMath={disableMath} />
           <InlineImage uri={questionImageUrl} style={s.questionImage} />
 
           {/* Options */}
@@ -521,7 +522,7 @@ export default function MockTestReviewPage() {
                     <Text style={[s.optionLabelText, { color: labelColor }]}>{opt.id}</Text>
                   </View>
                   <View style={s.optionBody}>
-                    <ExamMathRenderer content={opt.text} textStyle={[s.optionText, { color: textColor }]} />
+                    <ExamMathRenderer content={opt.text} textStyle={[s.optionText, { color: textColor }]} disableMath={disableMath} />
                     <InlineImage uri={getImageUrl(opt.image, opt.imageUrl)} style={s.optionImage} />
                   </View>
                   {isCorrectOpt && (
@@ -583,7 +584,7 @@ export default function MockTestReviewPage() {
                   <MaterialCommunityIcons name="text-box-outline" size={15} color="#2563EB" />
                   <Text style={s.explainSectionTitle}>Explanation</Text>
                 </View>
-                <ExamMathRenderer content={currentQ.explanation ?? 'No explanation provided for this question.'} textStyle={s.explainBody} />
+                <ExamMathRenderer content={currentQ.explanation ?? 'No explanation provided for this question.'} textStyle={s.explainBody} disableMath={disableMath} />
               </View>
 
               {/* Key points per option */}
@@ -610,7 +611,7 @@ export default function MockTestReviewPage() {
                             {kp.option}
                           </Text>
                         </View>
-                        <ExamMathRenderer content={kp.explanation} textStyle={[s.kpText, isKpCorrect && { color: '#15803D' }]} />
+                        <ExamMathRenderer content={kp.explanation} textStyle={[s.kpText, isKpCorrect && { color: '#15803D' }]} disableMath={disableMath} />
                       </View>
                     );
                   })}
@@ -624,7 +625,7 @@ export default function MockTestReviewPage() {
                     <MaterialCommunityIcons name="school-outline" size={15} color="#0369A1" />
                     <Text style={[s.explainSectionTitle, { color: '#0369A1' }]}>Exam Insight</Text>
                   </View>
-                  <ExamMathRenderer content={currentQ.examInsight} textStyle={[s.explainBody, { color: '#0C4A6E' }]} />
+                  <ExamMathRenderer content={currentQ.examInsight} textStyle={[s.explainBody, { color: '#0C4A6E' }]} disableMath={disableMath} />
                 </View>
               ) : null}
 
@@ -635,7 +636,7 @@ export default function MockTestReviewPage() {
                     <MaterialCommunityIcons name="alert-outline" size={15} color="#B45309" />
                     <Text style={[s.explainSectionTitle, { color: '#B45309' }]}>Common Trap</Text>
                   </View>
-                  <ExamMathRenderer content={currentQ.commonTrap} textStyle={[s.explainBody, { color: '#92400E' }]} />
+                  <ExamMathRenderer content={currentQ.commonTrap} textStyle={[s.explainBody, { color: '#92400E' }]} disableMath={disableMath} />
                 </View>
               ) : null}
 
@@ -649,7 +650,7 @@ export default function MockTestReviewPage() {
                   <View style={s.memoryTrickRow}>
                     <Text style={s.memoryTrickIcon}>Lightbulb: </Text>
                     <View style={s.memoryTrickBody}>
-                      <ExamMathRenderer content={currentQ.memoryTrick} textStyle={[s.explainBody, { color: '#5B21B6', fontStyle: 'italic' }]} />
+                      <ExamMathRenderer content={currentQ.memoryTrick} textStyle={[s.explainBody, { color: '#5B21B6', fontStyle: 'italic' }]} disableMath={disableMath} />
                     </View>
                   </View>
                 </View>

@@ -11,6 +11,7 @@ export type MathRendererProps = {
   lineHeight?: number;
   textColor?: string;
   fontFamily?: string;
+  disableMath?: boolean;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   numberOfLines?: number;
@@ -22,18 +23,20 @@ function MathRendererComponent({
   lineHeight = Math.round(fontSize * 1.45),
   textColor = '#1E293B',
   fontFamily = Platform.select({ web: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', default: undefined }),
+  disableMath = false,
   style,
   textStyle,
   numberOfLines,
 }: MathRendererProps) {
   const safeContent = content ?? '';
-  const renderMath = shouldRenderMath(safeContent, numberOfLines);
+  const renderMath = !disableMath && shouldRenderMath(safeContent, numberOfLines);
   const [height, setHeight] = useState(lineHeight + 4);
   const [renderFailed, setRenderFailed] = useState(false);
 
   useEffect(() => {
     setRenderFailed(false);
-  }, [safeContent]);
+    setHeight(lineHeight + 4);
+  }, [lineHeight, safeContent]);
 
   const html = useMemo(() => {
     if (!renderMath) return '';

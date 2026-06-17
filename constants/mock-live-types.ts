@@ -88,6 +88,10 @@ export const normalizeSubject = (name: string) => {
   return name;
 };
 
+export const shouldDisableMathForSection = (sectionName?: string | null) => {
+  return normalizeSubject(String(sectionName ?? '')) === 'English Language';
+};
+
 export const getImageUrl = (image?: LiveImageSource, imageUrl?: string) => {
   if (typeof imageUrl === 'string' && imageUrl.trim()) return imageUrl.trim();
   if (typeof image === 'string' && image.trim()) return image.trim();

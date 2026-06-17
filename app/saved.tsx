@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 import ExamMathRenderer from '@/components/math/MathRenderer';
-import { flattenSectionQuestions, getImageUrl, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
+import { flattenSectionQuestions, getImageUrl, shouldDisableMathForSection, type FlattenedLiveQuestion, type LiveMockPayload, type LiveOption } from '@/constants/mock-live-types';
 import { getCachedMockTestById, getCachedSession } from '@/lib/app-data-cache';
 import { hasSupabaseConfig, supabase } from '@/lib/supabase';
 
@@ -98,13 +98,14 @@ export default function SavedQuestionsPage() {
             const selectedAnswer = attempt?.answers?.[question.answerKey] ?? null;
             const directionImageUrl = question.direction?.imageUrl ?? null;
             const questionImageUrl = getImageUrl(question.image, question.imageUrl);
+            const disableMath = shouldDisableMathForSection(question.sectionName);
 
             return (
               <View key={question.answerKey} style={styles.card}>
                 <Pressable onPress={() => toggleOpen(question.answerKey)} style={styles.cardHeader}>
                   <View style={styles.cardHeaderMain}>
                     <Text style={styles.cardCount}>Saved {index + 1}</Text>
-                    <ExamMathRenderer content={question.question} numberOfLines={isOpen ? undefined : 2} textStyle={styles.cardQuestion} />
+                    <ExamMathRenderer content={question.question} numberOfLines={isOpen ? undefined : 2} textStyle={styles.cardQuestion} disableMath={disableMath} />
                   </View>
                   <MaterialCommunityIcons name={isOpen ? 'chevron-up' : 'chevron-down'} size={18} color="#64748B" />
                 </Pressable>
@@ -114,7 +115,7 @@ export default function SavedQuestionsPage() {
                     {question.direction ? (
                       <View style={styles.directionCard}>
                         <Text style={styles.directionLabel}>{question.direction.setType ? question.direction.setType.replaceAll('_', ' ') : 'Direction'}</Text>
-                        <ExamMathRenderer content={question.direction.directionText} textStyle={styles.directionText} />
+                        <ExamMathRenderer content={question.direction.directionText} textStyle={styles.directionText} disableMath={disableMath} />
                         <InlineImage uri={directionImageUrl} style={styles.directionImage} />
                       </View>
                     ) : null}
@@ -129,7 +130,7 @@ export default function SavedQuestionsPage() {
                           <View key={opt.id} style={[styles.optionItem, isCorrect && styles.optionCorrect, isSelected && styles.optionSelected]}>
                             <View style={styles.optionLabel}><Text style={styles.optionLabelText}>{opt.id}</Text></View>
                             <View style={styles.optionBody}>
-                              <ExamMathRenderer content={opt.text} textStyle={styles.optionText} />
+                              <ExamMathRenderer content={opt.text} textStyle={styles.optionText} disableMath={disableMath} />
                               <InlineImage uri={getImageUrl(opt.image, opt.imageUrl)} style={styles.optionImage} />
                             </View>
                             {isCorrect ? <MaterialCommunityIcons name="check-circle" size={18} color="#16A34A" /> : null}
@@ -144,34 +145,34 @@ export default function SavedQuestionsPage() {
                       <View style={styles.correctAnswerRow}>
                         <Text style={styles.correctAnswerPrefix}>{`${question.correctAnswer} - `}</Text>
                         <View style={styles.correctAnswerBody}>
-                          <ExamMathRenderer content={question.options.find((option) => option.id === question.correctAnswer)?.text ?? ''} textStyle={styles.detailText} />
+                          <ExamMathRenderer content={question.options.find((option) => option.id === question.correctAnswer)?.text ?? ''} textStyle={styles.detailText} disableMath={disableMath} />
                         </View>
                       </View>
                     </View>
 
                     <View style={styles.detailBox}>
                       <Text style={styles.detailTitle}>Explanation</Text>
-                      <ExamMathRenderer content={question.explanation ?? 'No explanation provided for this question.'} textStyle={styles.detailText} />
+                      <ExamMathRenderer content={question.explanation ?? 'No explanation provided for this question.'} textStyle={styles.detailText} disableMath={disableMath} />
                     </View>
 
                     {question.examInsight ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Exam Insight</Text>
-                        <ExamMathRenderer content={question.examInsight} textStyle={styles.detailText} />
+                        <ExamMathRenderer content={question.examInsight} textStyle={styles.detailText} disableMath={disableMath} />
                       </View>
                     ) : null}
 
                     {question.commonTrap ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Common Trap</Text>
-                        <ExamMathRenderer content={question.commonTrap} textStyle={styles.detailText} />
+                        <ExamMathRenderer content={question.commonTrap} textStyle={styles.detailText} disableMath={disableMath} />
                       </View>
                     ) : null}
 
                     {question.memoryTrick ? (
                       <View style={styles.detailBox}>
                         <Text style={styles.detailTitle}>Memory Trick</Text>
-                        <ExamMathRenderer content={question.memoryTrick} textStyle={styles.detailText} />
+                        <ExamMathRenderer content={question.memoryTrick} textStyle={styles.detailText} disableMath={disableMath} />
                       </View>
                     ) : null}
                   </View>
