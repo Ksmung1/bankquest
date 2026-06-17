@@ -75,13 +75,13 @@ export function buildMathHtml({
       }
       .math-block {
         display: block;
-        margin: 0.35em 0;
+        margin: 0.12em 0;
       }
       .math-inline {
         display: inline;
       }
       .katex-display {
-        margin: 0.35em 0;
+        margin: 0.12em 0;
         overflow: hidden;
       }
       .katex {
@@ -96,10 +96,12 @@ export function buildMathHtml({
     <script>
       (function () {
         const postHeight = () => {
+          const root = document.getElementById('math-root');
+          const rect = root ? root.getBoundingClientRect() : null;
           const height = Math.max(
-            document.body.scrollHeight,
-            document.documentElement.scrollHeight,
-            document.getElementById('math-root')?.scrollHeight || 0
+            rect ? rect.height : 0,
+            root ? root.scrollHeight : 0,
+            root ? root.offsetHeight : 0
           );
           const payload = JSON.stringify({ type: 'math-height', height: Math.ceil(height || ${lineHeight}) });
           if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
