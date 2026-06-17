@@ -75,13 +75,13 @@ export function buildMathHtml({
       }
       .math-block {
         display: block;
-        margin: 0.1em 0;
+        margin: 0.35em 0;
       }
       .math-inline {
         display: inline;
       }
       .katex-display {
-        margin: 0.1em 0;
+        margin: 0.35em 0;
         overflow: hidden;
       }
       .katex {
@@ -96,28 +96,17 @@ export function buildMathHtml({
     <script>
       (function () {
         const postHeight = () => {
-          const root = document.getElementById('math-root');
-          const rootRect = root ? root.getBoundingClientRect() : null;
-          const rootHeight = rootRect ? rootRect.height : 0;
-          const scrollHeight = root ? root.scrollHeight : 0;
-          const offsetHeight = root ? root.offsetHeight : 0;
-          const height = Math.max(rootHeight, scrollHeight, offsetHeight);
+          const height = Math.max(
+            document.body.scrollHeight,
+            document.documentElement.scrollHeight,
+            document.getElementById('math-root')?.scrollHeight || 0
+          );
           const payload = JSON.stringify({ type: 'math-height', height: Math.ceil(height || ${lineHeight}) });
           if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
             window.ReactNativeWebView.postMessage(payload);
           }
           if (window.parent && window.parent !== window) {
             window.parent.postMessage({ type: 'math-height', height: Math.ceil(height || ${lineHeight}) }, '*');
-          }
-        };
-
-        const postReady = () => {
-          const payload = JSON.stringify({ type: 'math-ready' });
-          if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
-            window.ReactNativeWebView.postMessage(payload);
-          }
-          if (window.parent && window.parent !== window) {
-            window.parent.postMessage({ type: 'math-ready' }, '*');
           }
         };
 
@@ -137,7 +126,6 @@ export function buildMathHtml({
             strict: 'ignore'
           });
           postHeight();
-          postReady();
         };
 
         window.addEventListener('load', render);
