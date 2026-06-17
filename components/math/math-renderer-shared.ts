@@ -61,11 +61,8 @@ export function buildMathHtml({
         padding: 0;
         background: transparent;
         overflow: hidden;
-        height: auto;
       }
       body {
-        display: inline-block;
-        min-width: 100%;
         color: ${safeTextColor};
         font-size: ${fontSize}px;
         line-height: ${lineHeight}px;

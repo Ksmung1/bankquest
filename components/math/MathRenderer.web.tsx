@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Platform, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
 import { buildMathHtml, shouldRenderMath } from '@/components/math/math-renderer-shared';
 import { toPlainMathPreview } from '@/utils/mathText';
@@ -27,41 +27,51 @@ function MathRendererComponent({
   textStyle,
   numberOfLines,
 }: MathRendererProps) {
+  const resolvedTextStyle = StyleSheet.flatten(textStyle) ?? {};
+  const resolvedFontSize = typeof fontSize === 'number' ? fontSize : typeof resolvedTextStyle.fontSize === 'number' ? resolvedTextStyle.fontSize : 15;
+  const resolvedLineHeight = typeof lineHeight === 'number' ? lineHeight : typeof resolvedTextStyle.lineHeight === 'number' ? resolvedTextStyle.lineHeight : Math.round(resolvedFontSize * 1.45);
+  const resolvedTextColor = typeof textColor === 'string' ? textColor : typeof resolvedTextStyle.color === 'string' ? resolvedTextStyle.color : '#1E293B';
+  const resolvedFontFamily =
+    typeof fontFamily === 'string'
+      ? fontFamily
+      : typeof resolvedTextStyle.fontFamily === 'string'
+        ? resolvedTextStyle.fontFamily
+        : 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
   const safeContent = content ?? '';
   const renderMath = !disableMath && shouldRenderMath(safeContent, numberOfLines);
-  const [height, setHeight] = useState(lineHeight + 4);
+  const [height, setHeight] = useState(resolvedLineHeight + 4);
   const [renderFailed, setRenderFailed] = useState(false);
 
   const html = useMemo(() => {
     if (!renderMath) return '';
     return buildMathHtml({
       content: safeContent,
-      fontSize,
-      lineHeight,
-      textColor,
-      fontFamily,
+      fontSize: resolvedFontSize,
+      lineHeight: resolvedLineHeight,
+      textColor: resolvedTextColor,
+      fontFamily: resolvedFontFamily,
     });
-  }, [fontFamily, fontSize, lineHeight, renderMath, safeContent, textColor]);
+  }, [renderMath, resolvedFontFamily, resolvedFontSize, resolvedLineHeight, resolvedTextColor, safeContent]);
 
   useEffect(() => {
     setRenderFailed(false);
-    setHeight(lineHeight + 4);
-  }, [lineHeight, safeContent]);
+    setHeight(resolvedLineHeight + 4);
+  }, [resolvedLineHeight, safeContent]);
 
   useEffect(() => {
     if (!renderMath) return undefined;
     const handler = (event: MessageEvent<{ type?: string; height?: number }>) => {
       if (event.data?.type === 'math-height' && typeof event.data.height === 'number') {
-        setHeight(Math.max(lineHeight + 4, event.data.height));
+        setHeight(Math.max(resolvedLineHeight + 4, event.data.height));
       }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
-  }, [lineHeight, renderMath]);
+  }, [renderMath, resolvedLineHeight]);
 
   if (!renderMath || renderFailed) {
     return (
-      <Text numberOfLines={numberOfLines} style={[{ fontSize, lineHeight, color: textColor }, textStyle]}>
+      <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
         {toPlainMathPreview(safeContent)}
       </Text>
     );

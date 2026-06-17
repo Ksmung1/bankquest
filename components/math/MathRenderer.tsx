@@ -28,37 +28,47 @@ function MathRendererComponent({
   textStyle,
   numberOfLines,
 }: MathRendererProps) {
+  const resolvedTextStyle = StyleSheet.flatten(textStyle) ?? {};
+  const resolvedFontSize = typeof fontSize === 'number' ? fontSize : typeof resolvedTextStyle.fontSize === 'number' ? resolvedTextStyle.fontSize : 15;
+  const resolvedLineHeight = typeof lineHeight === 'number' ? lineHeight : typeof resolvedTextStyle.lineHeight === 'number' ? resolvedTextStyle.lineHeight : Math.round(resolvedFontSize * 1.45);
+  const resolvedTextColor = typeof textColor === 'string' ? textColor : typeof resolvedTextStyle.color === 'string' ? resolvedTextStyle.color : '#1E293B';
+  const resolvedFontFamily =
+    typeof fontFamily === 'string'
+      ? fontFamily
+      : typeof resolvedTextStyle.fontFamily === 'string'
+        ? resolvedTextStyle.fontFamily
+        : Platform.select({ web: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', default: undefined });
   const safeContent = content ?? '';
   const renderMath = !disableMath && shouldRenderMath(safeContent, numberOfLines);
-  const [height, setHeight] = useState(lineHeight + 4);
+  const [height, setHeight] = useState(resolvedLineHeight + 4);
   const [renderFailed, setRenderFailed] = useState(false);
 
   useEffect(() => {
     setRenderFailed(false);
-    setHeight(lineHeight + 4);
-  }, [lineHeight, safeContent]);
+    setHeight(resolvedLineHeight + 4);
+  }, [resolvedLineHeight, safeContent]);
 
   const html = useMemo(() => {
     if (!renderMath) return '';
     return buildMathHtml({
       content: safeContent,
-      fontSize,
-      lineHeight,
-      textColor,
-      fontFamily,
+      fontSize: resolvedFontSize,
+      lineHeight: resolvedLineHeight,
+      textColor: resolvedTextColor,
+      fontFamily: resolvedFontFamily,
     });
-  }, [fontFamily, fontSize, lineHeight, renderMath, safeContent, textColor]);
+  }, [renderMath, resolvedFontFamily, resolvedFontSize, resolvedLineHeight, resolvedTextColor, safeContent]);
 
   if (!renderMath || renderFailed) {
     return (
-      <Text numberOfLines={numberOfLines} style={[{ fontSize, lineHeight, color: textColor }, textStyle]}>
+      <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
         {toPlainMathPreview(safeContent)}
       </Text>
     );
   }
 
   return (
-    <View pointerEvents="none" style={[styles.container, { minHeight: lineHeight }, style]}>
+    <View pointerEvents="none" style={[styles.container, { minHeight: resolvedLineHeight }, style]}>
       <WebView
         originWhitelist={['*']}
         source={{ html }}
@@ -68,7 +78,7 @@ function MathRendererComponent({
           try {
             const payload = JSON.parse(event.nativeEvent.data);
             if (payload?.type === 'math-height' && typeof payload.height === 'number') {
-              setHeight(Math.max(lineHeight + 4, payload.height));
+              setHeight(Math.max(resolvedLineHeight + 4, payload.height));
             }
           } catch {
             // Ignore malformed resize messages from the embedded document.
