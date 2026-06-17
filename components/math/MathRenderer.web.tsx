@@ -40,6 +40,7 @@ function MathRendererComponent({
   const safeContent = content ?? '';
   const renderMath = !disableMath && shouldRenderMath(safeContent, numberOfLines);
   const [height, setHeight] = useState(resolvedLineHeight + 4);
+  const [isReady, setIsReady] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
 
   const html = useMemo(() => {
@@ -55,6 +56,7 @@ function MathRendererComponent({
 
   useEffect(() => {
     setRenderFailed(false);
+    setIsReady(false);
     setHeight(resolvedLineHeight + 4);
   }, [resolvedLineHeight, safeContent]);
 
@@ -63,6 +65,10 @@ function MathRendererComponent({
     const handler = (event: MessageEvent<{ type?: string; height?: number }>) => {
       if (event.data?.type === 'math-height' && typeof event.data.height === 'number') {
         setHeight(Math.max(resolvedLineHeight + 4, event.data.height));
+        return;
+      }
+      if (event.data?.type === 'math-ready') {
+        setIsReady(true);
       }
     };
     window.addEventListener('message', handler);
@@ -78,22 +84,33 @@ function MathRendererComponent({
   }
 
   return (
-    <iframe
-      srcDoc={html}
-      style={{
-        border: '0',
-        width: '100%',
-        height: `${height}px`,
-        background: 'transparent',
-        overflow: 'hidden',
-        pointerEvents: 'none',
-        ...(style as object),
-      }}
-      scrolling="no"
-      sandbox="allow-scripts"
-      title={`math-renderer-${Platform.OS}`}
-      onError={() => setRenderFailed(true)}
-    />
+    <div style={{ position: 'relative', minHeight: `${resolvedLineHeight}px`, ...(style as object) }}>
+      {!isReady ? (
+        <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
+          {toPlainMathPreview(safeContent)}
+        </Text>
+      ) : null}
+      <iframe
+        srcDoc={html}
+        style={{
+          border: '0',
+          width: '100%',
+          height: `${height}px`,
+          background: 'transparent',
+          overflow: 'hidden',
+          pointerEvents: 'none',
+          opacity: isReady ? 1 : 0,
+          position: isReady ? 'relative' : 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+        }}
+        scrolling="no"
+        sandbox="allow-scripts"
+        title={`math-renderer-${Platform.OS}`}
+        onError={() => setRenderFailed(true)}
+      />
+    </div>
   );
 }
 

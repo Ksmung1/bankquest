@@ -41,10 +41,12 @@ function MathRendererComponent({
   const safeContent = content ?? '';
   const renderMath = !disableMath && shouldRenderMath(safeContent, numberOfLines);
   const [height, setHeight] = useState(resolvedLineHeight + 4);
+  const [isReady, setIsReady] = useState(false);
   const [renderFailed, setRenderFailed] = useState(false);
 
   useEffect(() => {
     setRenderFailed(false);
+    setIsReady(false);
     setHeight(resolvedLineHeight + 4);
   }, [resolvedLineHeight, safeContent]);
 
@@ -69,16 +71,25 @@ function MathRendererComponent({
 
   return (
     <View pointerEvents="none" style={[styles.container, { minHeight: resolvedLineHeight }, style]}>
+      {!isReady ? (
+        <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
+          {toPlainMathPreview(safeContent)}
+        </Text>
+      ) : null}
       <WebView
         originWhitelist={['*']}
         source={{ html }}
-        style={{ backgroundColor: 'transparent', height }}
+        style={{ backgroundColor: 'transparent', height, opacity: isReady ? 1 : 0, position: isReady ? 'relative' : 'absolute', top: 0, left: 0, right: 0 }}
         containerStyle={styles.webviewContainer}
         onMessage={(event) => {
           try {
             const payload = JSON.parse(event.nativeEvent.data);
             if (payload?.type === 'math-height' && typeof payload.height === 'number') {
               setHeight(Math.max(resolvedLineHeight + 4, payload.height));
+              return;
+            }
+            if (payload?.type === 'math-ready') {
+              setIsReady(true);
             }
           } catch {
             // Ignore malformed resize messages from the embedded document.
@@ -104,6 +115,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     backgroundColor: 'transparent',
+    position: 'relative',
   },
   webviewContainer: {
     backgroundColor: 'transparent',

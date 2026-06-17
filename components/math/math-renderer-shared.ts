@@ -111,6 +111,16 @@ export function buildMathHtml({
           }
         };
 
+        const postReady = () => {
+          const payload = JSON.stringify({ type: 'math-ready' });
+          if (window.ReactNativeWebView && typeof window.ReactNativeWebView.postMessage === 'function') {
+            window.ReactNativeWebView.postMessage(payload);
+          }
+          if (window.parent && window.parent !== window) {
+            window.parent.postMessage({ type: 'math-ready' }, '*');
+          }
+        };
+
         const render = () => {
           if (typeof window.renderMathInElement !== 'function') {
             window.setTimeout(render, 30);
@@ -127,6 +137,7 @@ export function buildMathHtml({
             strict: 'ignore'
           });
           postHeight();
+          postReady();
         };
 
         window.addEventListener('load', render);
