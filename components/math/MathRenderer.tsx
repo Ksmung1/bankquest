@@ -71,15 +71,10 @@ function MathRendererComponent({
 
   return (
     <View pointerEvents="none" style={[styles.container, { minHeight: resolvedLineHeight }, style]}>
-      {!isReady ? (
-        <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
-          {toPlainMathPreview(safeContent)}
-        </Text>
-      ) : null}
       <WebView
         originWhitelist={['*']}
         source={{ html }}
-        style={{ backgroundColor: 'transparent', height, opacity: isReady ? 1 : 0, position: isReady ? 'relative' : 'absolute', top: 0, left: 0, right: 0 }}
+        style={{ backgroundColor: 'transparent', height }}
         containerStyle={styles.webviewContainer}
         onMessage={(event) => {
           try {
@@ -107,6 +102,13 @@ function MathRendererComponent({
         onError={() => setRenderFailed(true)}
         onHttpError={() => setRenderFailed(true)}
       />
+      {!isReady ? (
+        <View style={styles.placeholderOverlay}>
+          <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
+            {toPlainMathPreview(safeContent)}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -118,6 +120,13 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   webviewContainer: {
+    backgroundColor: 'transparent',
+  },
+  placeholderOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     backgroundColor: 'transparent',
   },
 });

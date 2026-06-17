@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { Platform, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
+import { Platform, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle, View } from 'react-native';
 
 import { buildMathHtml, shouldRenderMath } from '@/components/math/math-renderer-shared';
 import { toPlainMathPreview } from '@/utils/mathText';
@@ -85,11 +85,6 @@ function MathRendererComponent({
 
   return (
     <div style={{ position: 'relative', minHeight: `${resolvedLineHeight}px`, ...(style as object) }}>
-      {!isReady ? (
-        <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
-          {toPlainMathPreview(safeContent)}
-        </Text>
-      ) : null}
       <iframe
         srcDoc={html}
         style={{
@@ -99,17 +94,26 @@ function MathRendererComponent({
           background: 'transparent',
           overflow: 'hidden',
           pointerEvents: 'none',
-          opacity: isReady ? 1 : 0,
-          position: isReady ? 'relative' : 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
         }}
         scrolling="no"
         sandbox="allow-scripts"
         title={`math-renderer-${Platform.OS}`}
         onError={() => setRenderFailed(true)}
       />
+      {!isReady ? (
+        <View
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            backgroundColor: 'transparent',
+          }}>
+          <Text numberOfLines={numberOfLines} style={[{ fontSize: resolvedFontSize, lineHeight: resolvedLineHeight, color: resolvedTextColor }, textStyle]}>
+            {toPlainMathPreview(safeContent)}
+          </Text>
+        </View>
+      ) : null}
     </div>
   );
 }
