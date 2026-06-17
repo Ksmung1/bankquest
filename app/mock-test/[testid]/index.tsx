@@ -541,6 +541,32 @@ export default function MockTestDetailPage() {
     }
   };
 
+  const quitTest = () => {
+    Alert.alert(
+      'Quit test?',
+      'Your current test progress will be deleted and cannot be resumed.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Quit',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setShowSubmitFlow(false);
+              setSubmitStage('confirm');
+              setAllowLeave(true);
+              await clearPausedMockAttempt();
+              router.replace('/mock-test');
+            } catch (error) {
+              setAllowLeave(false);
+              Alert.alert('Quit failed', formatSubmitError(error));
+            }
+          },
+        },
+      ]
+    );
+  };
+
   useEffect(() => {
     const unsub = navigation.addListener('beforeRemove', (e) => {
       if (allowLeaveRef.current) return;
@@ -592,6 +618,13 @@ export default function MockTestDetailPage() {
         <View style={styles.examTitleRow}>
           <Text style={styles.examTitle}>{payload.title}</Text>
           <View style={styles.headerActions}>
+            <Pressable
+              onPress={quitTest}
+              style={({ pressed }) => [styles.quitChip, pressed && styles.pressed]}
+            >
+              <MaterialCommunityIcons name="close-circle-outline" size={13} color="#DC2626" />
+              <Text style={styles.quitChipText}>Quit Test</Text>
+            </Pressable>
             <Pressable
               onPress={() => router.push({ pathname: '/saved', params: { testid: String(testid) } })}
               style={({ pressed }) => [styles.savedChip, pressed && styles.pressed]}
@@ -743,6 +776,8 @@ const styles = StyleSheet.create({
   examTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, gap: 8 },
   examTitle: { flex: 1, fontSize: 15, fontWeight: '900', color: '#1E293B' },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  quitChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
+  quitChipText: { fontSize: 12, fontWeight: '800', color: '#DC2626' },
   savedChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#FCD34D', backgroundColor: '#FFFBEB', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
   savedChipText: { fontSize: 12, fontWeight: '800', color: '#D97706' },
   timerChip: { flexDirection: 'row', alignItems: 'center', gap: 4, borderWidth: 1, borderColor: '#BFDBFE', backgroundColor: '#EFF6FF', borderRadius: 20, paddingHorizontal: 8, paddingVertical: 4 },
